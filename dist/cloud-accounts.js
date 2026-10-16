@@ -1,11 +1,11 @@
 let hpeDirectory=[],hpeRequests=[],hpeDirectoryError='',hpeDirectoryLoaded=false;
-async function hpeAccountsCall(body){
+async function hpeAccountsCall(body){ if(window.hpeNetworkAllowed?.()===false)throw Error('Desative o modo offline e conecte à internet para gerenciar contas.');
   if(!hpeAuth||!hpeProfile)throw Error('Entre novamente para gerenciar contas.');
   const {data:result,error}=await hpeAuth.functions.invoke('hpe-accounts',{body});
   if(error){let message='O cadastro no servidor ainda não está disponível. Ative a função hpe-accounts e execute accounts.sql no Supabase.';try{const response=await error.context?.json();if(response?.error)message=response.error}catch{}throw Error(message)}
   if(result?.error)throw Error(result.error);return result;
 }
-async function hpeAccountsRefresh(){
+async function hpeAccountsRefresh(){ if(window.hpeNetworkAllowed?.()===false)return;
   hpeDirectoryLoaded=false;hpeDirectory=[];hpeRequests=[];
   if(!hpeProfile||hpeProfile.role==='aluno')return;
   try{
@@ -14,7 +14,7 @@ async function hpeAccountsRefresh(){
     for(const p of hpeDirectory.filter(p=>p.role==='aluno')){
       let s=data.students.find(s=>s.supabaseId===p.id);
       if(!s){let id=Date.now();while(data.students.some(s=>s.id===id))id++;s={id,supabaseId:p.id};data.students.push(s)}
-      Object.assign(s,{name:p.name,personalId:p.personal_id,goal:p.goal,level:p.level});
+      Object.assign(s,{name:p.name,personalId:p.personal_id,goal:p.goal,level:p.level,whatsapp:p.whatsapp||s.whatsapp});
       data.studentGoals[s.id]??={water:2000,weekly:p.training_days?.length||3,days:p.training_days||[],since:todayKey()};
       let a=data.studentAccounts.find(a=>a.student===s.id);if(!a){a={student:s.id};data.studentAccounts.push(a)}a.email=p.email;
     }
@@ -34,7 +34,7 @@ window.setLifetime=(id,enabled)=>hpeAccountMutation({action:'lifetime',target:id
 window.requestLicenses=()=>hpeAccountMutation({action:'request'});
 window.resolveLicenses=(id,approve)=>hpeAccountMutation({action:approve?'approve':'reject',target:id});
 adminScreen=function(){return heading('ADMINISTRAÇÃO · SUPABASE','Professores e licenças.','Contas, limites e uso vitalício controlados no servidor.',`<button onclick="hpeReloadAccounts()">Atualizar contas</button><button class="primary" onclick="addPersonal()">+ Cadastrar personal</button>`)+`${hpeDirectoryError?`<section class="card"><h2>Ativação do cadastro pendente</h2><p>${esc(hpeDirectoryError)}</p></section>`:''}<div class="grid">${hpeDirectory.filter(p=>p.role==='personal').map(p=>`<section class="card"><h2>${esc(p.name)}</h2><p>${esc(p.email||'')}</p><span class="tag">${hpeDirectory.filter(s=>s.role==='aluno'&&s.personal_id===p.id).length} / ${p.lifetime?'∞':p.license_limit} LICENÇAS</span><p>${p.lifetime?'Uso vitalício · alunos ilimitados':'Limite de alunos ativo'}</p><button aria-pressed="${p.lifetime}" onclick="setLifetime('${p.id}',${!p.lifetime})">${p.lifetime?'Desativar':'Ativar'} uso vitalício</button></section>`).join('')||'<section class="card"><p>Nenhum personal carregado do Supabase.</p></section>'}</div><section class="card"><h2>Solicitações de +20 licenças</h2>${hpeRequests.map(r=>`<div class="listrow"><div><b>${esc(hpeDirectory.find(p=>p.id===r.personal_id)?.name||'Personal')}</b><p>${esc(r.status)}</p></div>${r.status==='pendente'?`<button onclick="resolveLicenses('${r.id}',true)">Aprovar +20</button><button onclick="resolveLicenses('${r.id}',false)">Recusar</button>`:''}</div>`).join('')||'<p>Nenhuma solicitação carregada.</p>'}</section><p class="note">Contas e licenças no servidor. Confira o indicador para sincronizar os registros entre aparelhos da mesma conta. Treinos, resultados e conversa são compartilhados com os alunos vinculados.</p>`};
-const accountRender=render;render=function(){accountRender();if(hpeProfile?.role==='personal')$('#content').insertAdjacentHTML('afterbegin',`<section class="card"><div class="row"><b>Contas e licenças · Supabase</b><button onclick="hpeReloadAccounts()">Atualizar contas</button></div><p>${esc(hpeDirectoryError||'Cadastro de alunos conectado. Confira o indicador de sincronização dos seus registros.')}</p></section>`)};
+const accountRender=render;render=function(){accountRender();if(hpeProfile?.role==='personal')$('#content').insertAdjacentHTML('afterbegin',`<section class="card"><div class="row"><b>Contas e licenças · Supabase</b><button onclick="hpeReloadAccounts()">Atualizar contas</button></div><p>${esc(hpeDirectoryError||'Compartilhe seu convite. O aluno cadastra o próprio e-mail e senha.')}</p></section>`)};
 
 
 

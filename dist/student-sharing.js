@@ -6,12 +6,14 @@ function hpeStudentPayload(s,kind){const id=s.id;return kind==='program'?{plan:d
 function hpeApplyStudent(s,kind,p){const id=s.id;if(kind==='program'){data.plans[id]=p.plan||[];data.alternatePlans??={};data.alternatePlans[id]=p.alternate||{};data.blockNames[id]=p.names||{};data.studentGoals[id]=p.goals||{};data.excusedDays[id]=p.excused||{}}else{data.logs=data.logs.filter(l=>l.student!==id).concat((p.logs||[]).map(l=>({...l,student:id})));data.measurements=data.measurements.filter(m=>m.student!==id).concat((p.measurements||[]).map(m=>({...m,student:id})));data.dailyWater[id]=p.water||{}}}
 function hpeSharedMeta(){localStorage.setItem('hpe-shared-meta-'+hpeSharedOwner,JSON.stringify(hpeSharedCache))}
 async function hpeSharedStart(profile){
+ if(window.hpeNetworkAllowed?.()===false)return;
  hpeSharedOwner=profile.id;hpeSharedReady=false;hpeSharedConflict=false;hpeSharedCache={};if(profile.role==='adm'){sharedBar.hidden=true;return}
  if(profile.role==='aluno'){data.students[0].supabaseId=profile.id;data.students[0].personalId=profile.personal_id}
  try{hpeSharedCache=JSON.parse(localStorage.getItem('hpe-shared-meta-'+profile.id))||{}}catch{}
  await hpeSharedRefresh(true);
 }
 window.hpeSharedRefresh=async(initial=false)=>{
+ if(window.hpeNetworkAllowed?.()===false)return;
  if(!hpeProfile||hpeProfile.role==='adm'||hpeSharedBusy)return;
  if(window.isWorkoutActive?.()||(!initial&&$('#modal').open)){hpeSharedStatus('Finalize o treino ou feche o formulário antes de atualizar.');return}
  if(hpeSharedConflict){modal('<h2>Alterações no acompanhamento</h2><p>Há versões diferentes dos mesmos registros. Baixe uma cópia deste aparelho antes de carregar a versão do servidor.</p><button onclick="hpeSyncBackup()">Baixar cópia</button><button onclick="hpeSharedUseCloud()">Carregar acompanhamento do servidor</button>');return}
@@ -30,8 +32,8 @@ window.hpeSharedRefresh=async(initial=false)=>{
   }
   const {data:messages,error:messageError}=await hpeAuth.from('hpe_student_messages').select('*').in('student_id',ids).order('created_at',{ascending:false}).limit(1000);if(messageError)throw messageError;
   if(hpeProfile?.id!==owner)return;
-  data.messages=data.messages.filter(m=>!students.some(s=>s.id===m.student));
-  for(const m of messages.reverse()){const s=students.find(s=>s.supabaseId===m.student_id);data.messages.push({id:m.id,student:s.id,role:m.author_id===m.student_id?'aluno':'personal',text:m.body,date:m.created_at})}
+  data.messages=data.messages.filter(m=>m.pending||!students.some(s=>s.id===m.student));
+  for(const m of messages.reverse()){if(data.messages.some(local=>local.id===m.id))continue;const s=students.find(s=>s.supabaseId===m.student_id);data.messages.push({id:m.id,student:s.id,role:m.author_id===m.student_id?'aluno':'personal',text:m.body,date:m.created_at})}
   hpeSharedReady=true;hpeSharedMeta();localStorage.setItem(window.hpeDataKey,JSON.stringify(data));
   hpeSharedStatus(hpeSharedConflict?'Conflito no acompanhamento. Toque em Atualizar acompanhamento.':'Acompanhamento atualizado');render();
  }catch{hpeSharedStatus('Falha ao carregar acompanhamento. Dados deste aparelho preservados.')}finally{hpeSharedBusy=false}
@@ -40,6 +42,7 @@ window.hpeSharedRefresh=async(initial=false)=>{
 function profileCanWrite(kind){return hpeProfile?.role==='personal'||(hpeProfile?.role==='aluno'&&kind==='progress')}
 function hpeEmptyStudentPayload(kind){return kind==='program'?{plan:[],alternate:{},names:{},goals:{},excused:{}}:{logs:[],measurements:[],water:{}}}
 async function hpeSharedFlush(){
+ if(window.hpeNetworkAllowed?.()===false)return;
  if(!hpeSharedReady||hpeSharedBusy||hpeSharedConflict||hpeProfile?.id!==hpeSharedOwner)return;
  hpeSharedBusy=true;const owner=hpeSharedOwner;
  try{for(const s of hpeSharedStudents())for(const kind of ['program','progress']){
@@ -63,3 +66,4 @@ window.addEventListener('online',()=>hpeSharedRefresh());
 const sharedGoals=window.editGoals;window.editGoals=coach=>{if(hpeProfile?.role==='aluno'){toast('Peça ao personal para ajustar suas metas compartilhadas.');return}sharedGoals(coach)};
 const sharedSyncNow=window.hpeSyncNow;window.hpeSyncNow=async()=>{await sharedSyncNow();if(hpeSyncReady&&!hpeSyncConflict)await hpeSharedRefresh()};
 setInterval(()=>{if(hpeProfile&&document.visibilityState==='visible'&&!window.isWorkoutActive?.()&&!$('#modal').open&&!hpeSharedConflict)hpeSharedRefresh()},30000);
+

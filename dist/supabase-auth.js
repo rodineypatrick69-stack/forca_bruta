@@ -10,7 +10,7 @@ enterApp=function(selected){if(!hpeProfile||selected!==hpeProfile.role){showLogi
 function hpeEmptyData(profile){return {students:profile.role==='aluno'?[{id:1,name:profile.name,personalId:profile.personal_id,goal:'Definir objetivo',level:'Iniciante'}]:[],plans:{},logs:[],measurements:[],messages:[],personalAccounts:profile.role==='personal'?[{id:profile.id,name:profile.name,email:'Conta Supabase',limit:profile.license_limit,lifetime:profile.lifetime}]:[],studentAccounts:[],licenseRequests:[],dailyWater:{},studentGoals:{},excusedDays:{},appointments:[],monthlyFees:{},blockNames:{},alternatePlans:{}}}
 async function hpeOpenSession(session,selected){
   if(document.readyState==='loading')await new Promise(resolve=>document.addEventListener('DOMContentLoaded',resolve,{once:true}));
-  const version=++hpeAuthVersion;if(!session||hpeRecovery)return;
+  const version=++hpeAuthVersion;if(!session||hpeRecovery)return;if(typeof navigator!=='undefined'&&!navigator.onLine&&typeof hpeOfflineResume==='function'){hpeOfflineResume();return}
   const {data:userResult,error:userError}=await hpeAuth.auth.getUser();
   if(version!==hpeAuthVersion||hpeRecovery)return;
   if(userError||!userResult.user){hpeSignedOut();hpeError('Sua sessão expirou. Entre novamente.');return}
@@ -26,6 +26,7 @@ async function hpeOpenSession(session,selected){
   data=stored||hpeEmptyData(profile);if(typeof hpeSyncStart==='function')await hpeSyncStart(profile);save();if(typeof hpeAccountsRefresh==='function')await hpeAccountsRefresh();
   sessionStorage.setItem('forja-identity',JSON.stringify({role:profile.role,personalId:profile.role==='personal'?profile.id:profile.personal_id,studentId:profile.role==='aluno'?1:null}));
   sessionStorage.setItem('forja-session',profile.role);enterApp(profile.role);if(typeof hpeSharedStart==='function')await hpeSharedStart(profile);
+  if(typeof hpeOfflineSessionReady==='function'){hpeOfflineMode=false;hpeOfflineSessionReady(profile)}
   $('header .avatar').textContent=profile.role==='adm'?'CEO':profile.name.split(' ').map(x=>x[0]).slice(0,2).join('');
 }
 logoutButton.onclick=async()=>{++hpeAuthVersion;hpeRecovery=false;hpeSignedOut();if(hpeAuth)await hpeAuth.auth.signOut()};
@@ -46,6 +47,7 @@ showLogin('aluno');
 if(hpeAuth){
   hpeAuth.auth.onAuthStateChange((event,session)=>{if(event==='PASSWORD_RECOVERY'){hpeNewPassword();return}if(event==='SIGNED_OUT'){hpeSignedOut();return}if(event==='INITIAL_SESSION'&&session)setTimeout(()=>hpeOpenSession(session).catch(()=>{hpeSignedOut();hpeError('Não foi possível validar sua sessão. Entre novamente.')}),0)});
 }else hpeError('O serviço de login não carregou. Atualize a página.');
+
 
 
 

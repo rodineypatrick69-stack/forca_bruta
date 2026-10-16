@@ -6,6 +6,7 @@ function hpeSyncPayload(value){return JSON.parse(JSON.stringify(value,(key,item)
 function hpeSyncMeta(){localStorage.setItem('hpe-sync-meta-'+hpeSyncOwner,JSON.stringify({revision:hpeSyncRevision,dirty:hpeSyncDirty}))}
 function hpeSyncPersist(){localStorage.setItem(window.hpeDataKey,JSON.stringify(data));hpeSyncMeta()}
 async function hpeSyncStart(profile){
+ if(window.hpeNetworkAllowed?.()===false)return;
   clearTimeout(hpeSyncTimer);hpeSyncOwner=profile.id;hpeSyncReady=false;hpeSyncConflict=false;hpeSyncBusy=false;
   const owner=profile.id;let meta;try{meta=JSON.parse(localStorage.getItem('hpe-sync-meta-'+owner))}catch{}
   hpeSyncRevision=meta?.revision||0;hpeSyncDirty=Boolean(meta?.dirty);
@@ -28,6 +29,7 @@ window.hpeSyncChanged=()=>{
   hpeSyncStatus('Alterações aguardando envio…');hpeSyncTimer=setTimeout(hpeSyncFlush,700);
 };
 async function hpeSyncFlush(){
+ if(window.hpeNetworkAllowed?.()===false)return;
   if(!hpeSyncReady||!hpeSyncDirty||hpeSyncBusy||hpeSyncConflict||hpeProfile?.id!==hpeSyncOwner)return;
   const owner=hpeSyncOwner,payload=hpeSyncPayload(data),snapshot=JSON.stringify(payload);hpeSyncBusy=true;hpeSyncStatus('Salvando no Supabase…');
   try{

@@ -1,11 +1,13 @@
 # HPE Força Bruta
 
-Aplicativo web de musculação para personal trainers e alunos. Versão 28 exportada do projeto publicado.
+Aplicativo web de musculação para personal trainers e alunos. Código sincronizado com a versão 37 do projeto publicado.
 
 ## Recursos
 
 - Login por perfil conectado ao Supabase.
 - Planos de treino, demonstrações, registro de séries e descanso.
+- Miniaturas animadas na seleção do personal e na lista do aluno, com ampliação.
+- 15 movimentos de peito e pernas em vídeo contínuo; suporte a GIFs personalizados.
 - Biblioteca com 46 modelos de fichas anonimizadas.
 - Acompanhamento de evolução e comunicação entre personal e aluno.
 - Layout responsivo e instalação pela tela inicial do celular.

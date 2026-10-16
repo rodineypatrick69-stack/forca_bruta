@@ -127,7 +127,8 @@ const suppliedCatalog = [
     "exercises": [
       "Agachamento Livre com Barra",
       "Agachamento Frontal (Front Squat)",
-      "Agachamento no Smith / Hack Machine",
+      "Agachamento no Smith",
+      "Agachamento Hack",
       "Leg Press 45°",
       "Leg Press Horizontal ou Inclinado",
       "Cadeira Extensora",
