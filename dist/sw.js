@@ -1,0 +1,4 @@
+// No authenticated pages or student records are cached.
+self.addEventListener('install',()=>self.skipWaiting());
+self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()));
+self.addEventListener('fetch',event=>{if(event.request.mode==='navigate'&&new URL(event.request.url).origin===self.location.origin)event.respondWith(fetch(event.request).catch(()=>new Response('<!doctype html><html lang="pt-BR"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HPE • Sem conexão</title><body style="background:#101211;color:#edf1e9;font:18px system-ui;padding:40px"><h1>Você está sem conexão</h1><p>Conecte-se à internet para abrir o HPE Força Bruta.</p><button onclick="location.reload()">Tentar novamente</button></body></html>',{headers:{'Content-Type':'text/html; charset=utf-8'}})))});

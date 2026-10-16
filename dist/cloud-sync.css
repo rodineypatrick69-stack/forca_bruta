@@ -1,0 +1,4 @@
+.hpe-sync-bar{position:fixed;left:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:36;background:#171c16;color:#edf1e9;border:1px solid #586549;border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:12px;max-width:calc(100% - 32px);font-size:12px}.hpe-sync-bar[hidden]{display:none}.hpe-sync-bar button{padding:7px 10px;font-size:12px}@media(max-width:650px){.hpe-sync-bar{bottom:calc(70px + env(safe-area-inset-bottom));font-size:11px}}[data-theme=claro] .hpe-sync-bar{background:#fff;color:#1c271a}
+
+/* Routine synchronization continues without floating notifications. */
+.hpe-sync-bar{display:none!important}
