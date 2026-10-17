@@ -16,6 +16,25 @@ alter table public.hpe_student_drafts enable row level security;
 revoke all on public.hpe_student_drafts from public,anon,authenticated;
 grant select,insert,update,delete on public.hpe_student_drafts to service_role;
 
+-- O limite conta perfis e pré-cadastros sob o mesmo bloqueio do personal.
+create or replace function public.hpe_check_student_limit() returns trigger
+language plpgsql security definer set search_path='' as $$
+declare teacher public.hpe_profiles; used integer;
+begin
+ if new.role='aluno' then
+  if new.personal_id is null then raise exception 'PERSONAL_REQUIRED'; end if;
+  select * into teacher from public.hpe_profiles where id=new.personal_id for update;
+  if not found or teacher.role<>'personal' then raise exception 'INVALID_PERSONAL'; end if;
+  if not teacher.lifetime then
+   select count(*) into used from public.hpe_profiles where role='aluno' and personal_id=new.personal_id and id<>new.id;
+   used=used+(select count(*) from public.hpe_student_drafts where personal_id=new.personal_id);
+   if used>=teacher.license_limit then raise exception 'LICENSE_LIMIT'; end if;
+  end if;
+ end if;
+ return new;
+end $$;
+revoke all on function public.hpe_check_student_limit() from public,anon,authenticated;
+
 create or replace function public.hpe_save_student_draft(actor uuid,draft_id uuid,student_name text,student_email text,student_whatsapp text,student_goal text,student_level text,student_days integer[])
 returns public.hpe_student_drafts language plpgsql security definer set search_path='' as $$
 declare teacher public.hpe_profiles; result public.hpe_student_drafts;

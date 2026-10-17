@@ -29,23 +29,7 @@ Deno.serve(async req=>{
       let requestsQuery=admin.from('hpe_license_requests').select('*').order('created_at');
       if(caller.role==='personal')requestsQuery=requestsQuery.eq('personal_id',caller.id);
       const {data:requests,error:requestsError}=await requestsQuery;if(requestsError)throw requestsError;
-      let draftsQuery=admin.from('hpe_student_drafts').select('*').order('created_at');
-      if(caller.role==='personal')draftsQuery=draftsQuery.eq('personal_id',caller.id);
-      const {data:drafts,error:draftsError}=await draftsQuery;if(draftsError)throw draftsError;
-      return reply(200,{profiles,requests,drafts:drafts||[]});
-    }
-    if(body.action==='draft'){
-      if(caller.role!=='personal')return reply(403,{error:'Somente o personal pode pré-cadastrar alunos.'});
-      const name=typeof body.name==='string'?body.name.trim():'';
-      if(name.length<2||name.length>80)return reply(400,{error:'Informe o nome do aluno (2 a 80 caracteres).'});
-      const email=typeof body.email==='string'&&body.email.trim()?body.email.trim().toLowerCase():null;
-      const whatsapp=typeof body.whatsapp==='string'?body.whatsapp.trim():'';
-      if(email&& (email.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)))return reply(400,{error:'Confira o e-mail informado.'});
-      if(whatsapp.length>24)return reply(400,{error:'O WhatsApp pode ter até 24 caracteres.'});
-      if(body.id&&!uuid(body.id))return reply(400,{error:'Identificador inválido.'});
-      const {data:draft,error}=await admin.rpc('hpe_save_student_draft',{actor:caller.id,draft_id:body.id||null,student_name:name,student_email:email,student_whatsapp:whatsapp,student_goal:typeof body.goal==='string'?body.goal:'A definir',student_level:typeof body.level==='string'?body.level:'A definir',student_days:Array.isArray(body.days)?body.days:[]});
-      if(error)return reply(409,{error:error.message.includes('LICENSE_LIMIT')?'Limite de alunos atingido. Solicite mais licenças.':error.message.includes('FORBIDDEN')?'Seu perfil não pode pré-cadastrar alunos.':'Não foi possível salvar o pré-cadastro. Confira o banco e os dados.'});
-      return reply(200,{draft});
+      return reply(200,{profiles,requests});
     }
     if(['lifetime','request','approve','reject'].includes(body.action)){
       if(body.action!=='request'&&!uuid(body.target))return reply(400,{error:'Identificador inválido.'});
