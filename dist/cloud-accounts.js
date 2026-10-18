@@ -14,14 +14,55 @@ async function hpeAccountsRefresh(){ if(window.hpeNetworkAllowed?.()===false)ret
     for(const p of hpeDirectory.filter(p=>p.role==='aluno')){
       let s=data.students.find(s=>s.supabaseId===p.id);
       if(!s){let id=Date.now();while(data.students.some(s=>s.id===id))id++;s={id,supabaseId:p.id};data.students.push(s)}
-      Object.assign(s,{name:p.name,personalId:p.personal_id,accessCode:p.access_code||'',goal:p.goal,level:p.level,whatsapp:p.whatsapp||s.whatsapp});
-      data.studentGoals[s.id]??={water:2000,weekly:p.training_days?.length||3,days:p.training_days||[],since:todayKey()};
+      Object.assign(s,{name:p.name,personalId:p.personal_id,accessCode:p.access_code||'',goal:p.goal,level:p.level,whatsapp:p.whatsapp??''});
+      data.studentGoals[s.id]={...(data.studentGoals[s.id]||{}),water:data.studentGoals[s.id]?.water||2000,weekly:p.training_days?.length??0,days:Array.isArray(p.training_days)?p.training_days:[],since:data.studentGoals[s.id]?.since||todayKey()};
       let a=data.studentAccounts.find(a=>a.student===s.id);if(!a){a={student:s.id};data.studentAccounts.push(a)}a.accessCode=p.access_code||'';delete a.email;
     }
     data.licenseRequests=hpeRequests.map(r=>({id:r.id,personalId:r.personal_id,status:r.status,quantity:20,created:r.created_at}));save();
   }catch(error){hpeDirectoryError=error.message}
 }
 window.hpeReloadAccounts=async()=>{await hpeAccountsRefresh();render();toast(hpeDirectoryLoaded?'Contas atualizadas do Supabase.':hpeDirectoryError)};
+window.hpeEditStudentProfile=id=>{
+  if(hpeProfile?.role!=='personal')return;
+  const s=data.students.find(item=>item.id===Number(id));if(!s||!ownsStudent(s.id))return toast('Aluno não encontrado na sua lista.');
+  const profile=s.supabaseId?hpeDirectory.find(p=>p.id===s.supabaseId&&p.role==='aluno'):null;
+  const savedDays=profile?.training_days??data.studentGoals?.[s.id]?.days??[];
+  const days=Array.isArray(savedDays)?savedDays:[];
+  const phone=hpeNormalizeWhatsApp(s.whatsapp)||'';
+  modal(`<h2>Editar perfil do aluno</h2><p>Atualize os dados usados no acompanhamento. O plano e o histórico de treino serão mantidos.</p><form id="hpeStudentEditForm"><label>Nome completo<input name="name" value="${esc(s.name)}" maxlength="80" required></label><label>WhatsApp (opcional)<input name="whatsapp" type="tel" value="${phone?'+'+phone:''}" placeholder="(11) 99999-9999" maxlength="24"></label><label>Objetivo<select name="goal"><option ${s.goal==='Hipertrofia'?'selected':''}>Hipertrofia</option><option ${s.goal==='Condicionamento'?'selected':''}>Condicionamento</option><option ${s.goal==='Força'?'selected':''}>Força</option></select></label><label>Nível<select name="level"><option ${s.level==='Iniciante'?'selected':''}>Iniciante</option><option ${s.level==='Intermediário'?'selected':''}>Intermediário</option><option ${s.level==='Avançado'?'selected':''}>Avançado</option></select></label><fieldset><legend>Dias de treino</legend>${weekdaysFull.map((day,i)=>`<label><input type="checkbox" name="days" value="${i}" ${days.includes(i)?'checked':''}>${day}</label>`).join('')}</fieldset><p id="hpeStudentEditStatus" role="alert"></p><button class="primary">Salvar alterações</button><button type="button" onclick="$('#modal').close()">Cancelar</button></form>`);
+  $('#hpeStudentEditForm').onsubmit=async event=>{
+    event.preventDefault();const f=new FormData(event.target),status=$('#hpeStudentEditStatus'),button=event.target.querySelector('.primary');
+    const whatsapp=hpeNormalizeWhatsApp(f.get('whatsapp'));
+    if(whatsapp===null){status.textContent='Informe um WhatsApp válido com DDD ou deixe em branco.';return}
+    const values={name:String(f.get('name')||'').trim(),whatsapp,goal:f.get('goal'),level:f.get('level'),days:[...new Set(f.getAll('days').map(Number))]};
+    if(!values.name){status.textContent='Informe o nome do aluno.';return}
+    button.disabled=true;
+    try{
+      if(s.supabaseId){await hpeAccountsCall({action:'update_student',target:s.supabaseId,...values});await hpeAccountsRefresh()}
+      else{Object.assign(s,{name:values.name,whatsapp:values.whatsapp,goal:values.goal,level:values.level});data.studentGoals[s.id]={...(data.studentGoals[s.id]||{}),days:values.days,weekly:values.days.length};save()}
+      $('#modal').close();render();toast('Perfil do aluno atualizado.');
+    }catch(error){status.textContent=error.message}finally{button.disabled=false}
+  };
+};
+function hpeRemoveStudentLocal(s){
+  const id=s.id;data.students=data.students.filter(item=>item.id!==id);data.logs=data.logs.filter(item=>item.student!==id);data.measurements=data.measurements.filter(item=>item.student!==id);data.messages=data.messages.filter(item=>item.student!==id);data.studentAccounts=data.studentAccounts.filter(item=>item.student!==id);
+  for(const key of ['plans','alternatePlans','blockNames','studentGoals','excusedDays','dailyWater'])if(data[key])delete data[key][id];
+  if(s.supabaseId&&typeof hpeSharedCache!=='undefined'){delete hpeSharedCache[s.supabaseId+':program'];delete hpeSharedCache[s.supabaseId+':progress'];hpeSharedMeta?.()}
+  if(student===id)student=visibleStudents()[0]?.id||0;
+  if(s.supabaseId)hpeDirectory=hpeDirectory.filter(p=>p.id!==s.supabaseId);
+  save();
+}
+window.hpeConfirmStudentDelete=id=>{
+  if(hpeProfile?.role!=='personal')return;
+  const s=data.students.find(item=>item.id===Number(id));if(!s||!ownsStudent(s.id))return toast('Aluno não encontrado na sua lista.');
+  modal(`<h2>Excluir ${esc(s.name)}?</h2><p>Esta ação é permanente. A conta do aluno será removida, junto com o plano, o histórico de evolução e as mensagens vinculadas.</p><p>O código de acesso deixará de funcionar e a vaga de aluno será liberada.</p><button class="danger" onclick="hpeDeleteStudent(${s.id})">Excluir aluno permanentemente</button><button onclick="$('#modal').close()">Cancelar</button>`);
+};
+window.hpeDeleteStudent=async id=>{
+  if(hpeProfile?.role!=='personal')return;
+  const s=data.students.find(item=>item.id===Number(id));if(!s||!ownsStudent(s.id))return toast('Aluno não encontrado na sua lista.');
+  const button=$('#modalbody .danger');if(button)button.disabled=true;
+  try{if(s.supabaseId)await hpeAccountsCall({action:'delete_student',target:s.supabaseId});hpeRemoveStudentLocal(s);$('#modal').close();render();toast('Aluno excluído e dados vinculados removidos.')}catch(error){if(button)button.disabled=false;toast(error.message)}
+};
 function hpeAccountForm(kind){
   if(!hpeProfile||hpeProfile.role!==(kind==='personal'?'adm':'personal'))return;
   const studentForm=kind==='aluno';

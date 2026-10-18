@@ -1,18 +1,18 @@
 const fs=require('fs'),vm=require('vm'),assert=require('assert/strict'),crypto=require('node:crypto').webcrypto;
-let handler,caller={id:'11111111-1111-1111-1111-111111111111',role:'personal',lifetime:false,license_limit:20},count=19,profiles=[],createdUsers=[],updated=[],insertError=null;
+let handler,caller={id:'11111111-1111-1111-1111-111111111111',role:'personal',lifetime:false,license_limit:20},count=19,profiles=[],createdUsers=[],updated=[],deletedUsers=[],insertError=null;
 function query(table){
   const filters={};
   const q={
     select(){return q},update(values){q.updateValues=values;return q},eq(k,v){filters[k]=v;return q},or(){return q},order(){return q},
     single:async()=>({data:caller,error:null}),
-    maybeSingle:async()=>({data:profiles.find(p=>Object.entries(filters).every(([k,v])=>p[k]===v))||null,error:null}),
+    maybeSingle:async()=>{const profile=profiles.find(p=>Object.entries(filters).every(([k,v])=>p[k]===v))||null;if(profile&&q.updateValues)Object.assign(profile,q.updateValues);return {data:profile,error:null}},
     then(resolve,reject){if(q.updateValues){for(const p of profiles)if(Object.entries(filters).every(([k,v])=>p[k]===v))Object.assign(p,q.updateValues);return Promise.resolve({data:null,error:null}).then(resolve,reject)}return Promise.resolve({data:table==='hpe_profiles'?profiles:[],requests:[],count}).then(resolve,reject)},
     insert:async p=>{if(insertError)return {error:insertError};profiles.push(p);return {error:null}}
   };return q;
 }
 const admin={from:query,auth:{getUser:async()=>({data:{user:{id:caller.id}}}),admin:{
  createUser:async p=>{const user={id:'22222222-2222-2222-2222-222222222222',email:p.email,password:p.password};createdUsers.push(user);return {data:{user}}},
- deleteUser:async id=>({error:null}),
+ deleteUser:async id=>{deletedUsers.push(id);profiles=profiles.filter(p=>p.id!==id);return {error:null}},
  updateUserById:async(id,p)=>{updated.push({id,...p});return {error:null}}
 }}};
 const anon={auth:{signInWithPassword:async({email,password})=>{const user=createdUsers.find(x=>x.email===email&&x.password===password);return user?{data:{session:{access_token:'access',refresh_token:'refresh',user:{id:user.id}}},error:null}:{data:{session:null},error:{message:'invalid'}}}}};
@@ -37,9 +37,14 @@ const request=(body,token='valid')=>new Request(origin,{method:'POST',headers:{o
  const reset=await response.json();assert.equal(reset.access_code,priorCode);assert.notEqual(reset.temporary_password,result.temporary_password);assert.equal(updated.length,1);assert.equal(profile.password_setup_required,true);
  caller={id:'33333333-3333-3333-3333-333333333333',role:'personal',lifetime:true,license_limit:20};
  response=await handler(request({action:'reset_student_password',target:profile.id}));assert.equal(response.status,404);assert.equal(updated.length,1);
+ response=await handler(request({action:'update_student',target:profile.id,name:'Nome atualizado',whatsapp:'+5511999999999',goal:'Condicionamento',level:'Avançado',days:[0,2,4]}));assert.equal(response.status,404);
+ response=await handler(request({action:'delete_student',target:profile.id}));assert.equal(response.status,404);assert.deepEqual(deletedUsers,[]);
  caller={id:'11111111-1111-1111-1111-111111111111',role:'personal',lifetime:false,license_limit:20};count=20;
+ response=await handler(request({action:'update_student',target:profile.id,name:'Nome atualizado',whatsapp:'+5511999999999',goal:'Condicionamento',level:'Avançado',days:[0,2,4]}));assert.equal(response.status,200);assert.equal(profile.name,'Nome atualizado');assert.equal(profile.whatsapp,'+5511999999999');assert.equal(profile.goal,'Condicionamento');assert.equal(profile.level,'Avançado');assert.deepEqual(Array.from(profile.training_days),[0,2,4]);
+ response=await handler(request({action:'update_student',target:profile.id,name:'',whatsapp:'',goal:'Condicionamento',level:'Avançado',days:[]}));assert.equal(response.status,400);
+ response=await handler(request({action:'delete_student',target:profile.id}));assert.equal(response.status,200);assert.deepEqual(deletedUsers,[profile.id]);assert.equal(profiles.includes(profile),false);
  response=await handler(request(create));assert.equal(response.status,409);
  insertError={message:'LICENSE_LIMIT'};count=19;
  response=await handler(request(create));assert.equal(response.status,409);
- console.log('OK: criação sem e-mail, código numérico, senha no primeiro acesso, redefinição vinculada ao personal e limite de licenças.');
+ console.log('OK: criação/login/reset, edição de perfil, exclusão com verificação do personal e limite de licenças.');
 })().catch(e=>{console.error(e);process.exitCode=1});
