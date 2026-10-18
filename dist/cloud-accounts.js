@@ -34,7 +34,7 @@ window.hpeEditStudentProfile=id=>{
     event.preventDefault();const f=new FormData(event.target),status=$('#hpeStudentEditStatus'),button=event.target.querySelector('.primary');
     const whatsapp=hpeNormalizeWhatsApp(f.get('whatsapp'));
     if(whatsapp===null){status.textContent='Informe um WhatsApp válido com DDD ou deixe em branco.';return}
-    const values={name:String(f.get('name')||'').trim(),whatsapp:whatsapp?'+'+whatsapp:'',goal:f.get('goal'),level:f.get('level'),days:[...new Set(f.getAll('days').map(Number))]};
+    const values={name:String(f.get('name')||'').trim(),whatsapp,goal:f.get('goal'),level:f.get('level'),days:[...new Set(f.getAll('days').map(Number))]};
     if(!values.name){status.textContent='Informe o nome do aluno.';return}
     button.disabled=true;
     try{
