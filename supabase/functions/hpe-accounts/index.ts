@@ -4,7 +4,7 @@ const site='https://forja-treino-academia.younggoby6.chatgpt.site';
 const allowedOrigins=new Set([site,'https://forcabruta.vercel.app']);
 const cors=req=>({'Access-Control-Allow-Origin':req.headers.get('origin')||site,'Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'POST, OPTIONS','Vary':'Origin'});
 const reply=(req,status,body)=>new Response(JSON.stringify(body),{status,headers:{...cors(req),'Content-Type':'application/json','Cache-Control':'no-store'}});
-const randomHex=()=>Array.from(crypto.getRandomValues(new Uint8Array(8)),b=>b.toString(16).padStart(2,'0')).join('').toUpperCase();
+const randomAccessCode=()=>String(crypto.getRandomValues(new Uint32Array(1))[0]%1000000).padStart(6,'0');
 const temporaryPassword=()=>{const chars='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';const bytes=crypto.getRandomValues(new Uint8Array(18));return Array.from(bytes,b=>chars[b%chars.length]).join('')+'!';};
 const uuid=(s)=>typeof s==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 
@@ -23,8 +23,8 @@ Deno.serve(async req=>{
     if(body.action==='student_login'){
       const code=typeof body.access_code==='string'?body.access_code.trim().toUpperCase():'';
       const password=typeof body.password==='string'?body.password:'';
-      if(!/^[A-F0-9]{16}$/.test(code)||password.length<1||password.length>128)return reply(req,401,{error:'Código ou senha inválidos.'});
-      const {data:student,error:lookupError}=await admin.from('hpe_profiles').select('email').eq('access_code',code).eq('role','aluno').maybeSingle();
+      if(!/^(?:[0-9]{6}|[A-F0-9]{16})$/.test(code)||password.length<1||password.length>128)return reply(req,401,{error:'Código ou senha inválidos.'});
+      const {data:student,error:lookupError}=await admin.from('hpe_profiles').select('id,email,password_setup_required').eq('access_code',code).eq('role','aluno').maybeSingle();
       if(lookupError)return reply(req,503,{error:'Login temporariamente indisponível.'});
       if(!student?.email)return reply(req,401,{error:'Código ou senha inválidos.'});
       const anonKey=Deno.env.get('SUPABASE_ANON_KEY');
@@ -32,14 +32,22 @@ Deno.serve(async req=>{
       const publicAuth=createClient(url,anonKey,{auth:{persistSession:false,autoRefreshToken:false}});
       const {data:login,error:loginError}=await publicAuth.auth.signInWithPassword({email:student.email,password});
       if(loginError||!login.session)return reply(req,401,{error:'Código ou senha inválidos.'});
-      return reply(req,200,{session:login.session});
+      return reply(req,200,{session:login.session,must_set_password:student.password_setup_required===true});
     }
     const bearer=req.headers.get('authorization')||'';
     if(!bearer.startsWith('Bearer '))return reply(req,401,{error:'Entre novamente.'});
     const {data:auth,error:authError}=await admin.auth.getUser(bearer.slice(7));
     if(authError||!auth.user)return reply(req,401,{error:'Sessão inválida. Entre novamente.'});
     const {data:caller,error:profileError}=await admin.from('hpe_profiles').select('*').eq('id',auth.user.id).single();
-    if(profileError||!caller||!['adm','personal'].includes(caller.role))return reply(req,403,{error:'Seu perfil não permite gerenciar contas.'});
+    if(profileError||!caller)return reply(req,401,{error:'Sessão inválida. Entre novamente.'});
+    if(body.action==='complete_student_password_setup'){
+      if(caller.role!=='aluno')return reply(req,403,{error:'Apenas alunos podem concluir a configuração da senha.'});
+      if(!caller.password_setup_required)return reply(req,200,{ok:true});
+      const {error}=await admin.from('hpe_profiles').update({password_setup_required:false}).eq('id',caller.id).eq('role','aluno');
+      if(error)return reply(req,409,{error:'A senha foi alterada, mas não conseguimos concluir a configuração. Tente novamente.'});
+      return reply(req,200,{ok:true});
+    }
+    if(!['adm','personal'].includes(caller.role))return reply(req,403,{error:'Seu perfil não permite gerenciar contas.'});
     if(body.action==='list'){
       let query=admin.from('hpe_profiles').select('*').order('created_at');
       if(caller.role==='personal')query=query.or(`id.eq.${caller.id},personal_id.eq.${caller.id}`);
@@ -63,8 +71,10 @@ Deno.serve(async req=>{
       const {data:student,error:studentError}=await studentQuery.maybeSingle();
       if(studentError||!student)return reply(req,404,{error:'Aluno não encontrado na sua lista.'});
       const password=temporaryPassword();
+      const {error:flagError}=await admin.from('hpe_profiles').update({password_setup_required:true}).eq('id',student.id).eq('role','aluno');
+      if(flagError)return reply(req,409,{error:'Não foi possível preparar a redefinição. Tente novamente.'});
       const {error}=await admin.auth.admin.updateUserById(student.id,{password});
-      if(error)return reply(req,409,{error:'Não foi possível redefinir a senha. Tente novamente.'});
+      if(error){await admin.from('hpe_profiles').update({password_setup_required:false}).eq('id',student.id).eq('role','aluno');return reply(req,409,{error:'Não foi possível redefinir a senha. Tente novamente.'});}
       return reply(req,200,{access_code:student.access_code,temporary_password:password});
     }
     if(body.action!=='create')return reply(req,400,{error:'Operação desconhecida.'});
@@ -80,12 +90,21 @@ Deno.serve(async req=>{
       const {count,error}=await admin.from('hpe_profiles').select('id',{count:'exact',head:true}).eq('role','aluno').eq('personal_id',caller.id);
       if(error)throw error;if((count||0)>=caller.license_limit)return reply(req,409,{error:'Limite atingido. Solicite mais 20 licenças.'});
     }
-    const accessCode=studentAccount?randomHex():null;
-    const authEmail=studentAccount?'aluno.'+accessCode.toLowerCase()+'@hpe.invalid':email;
+    let accessCode=null;
+    if(studentAccount){
+      for(let attempt=0;attempt<20;attempt++){
+        const candidate=randomAccessCode();
+        const {data:existing,error:codeError}=await admin.from('hpe_profiles').select('id').eq('access_code',candidate).maybeSingle();
+        if(codeError)return reply(req,503,{error:'Não foi possível gerar um código de acesso. Tente novamente.'});
+        if(!existing){accessCode=candidate;break;}
+      }
+      if(!accessCode)return reply(req,503,{error:'Não foi possível gerar um código único. Tente novamente.'});
+    }
+    const authEmail=studentAccount?'aluno.'+crypto.randomUUID()+'@hpe.invalid':email;
     const initialPassword=studentAccount?temporaryPassword():password;
     const {data:created,error:createError}=await admin.auth.admin.createUser({email:authEmail,password:initialPassword,email_confirm:true});
     if(createError||!created.user)return reply(req,409,{error:studentAccount?'Não foi possível criar a conta do aluno. Tente novamente.':'Não foi possível criar a conta. Confira se o e-mail já existe e se a senha atende às regras.'});
-    const newProfile={id:created.user.id,name,email:authEmail,access_code:accessCode,role,personal_id:studentAccount?caller.id:null,license_limit:20,lifetime:false,goal:['Hipertrofia','Condicionamento','Força'].includes(body.goal)?body.goal:'Hipertrofia',level:['Iniciante','Intermediário','Avançado'].includes(body.level)?body.level:'Iniciante',whatsapp:studentAccount&&typeof body.whatsapp==='string'?body.whatsapp.slice(0,24):'',training_days:[...new Set(days)]};
+    const newProfile={id:created.user.id,name,email:authEmail,access_code:accessCode,password_setup_required:studentAccount,role,personal_id:studentAccount?caller.id:null,license_limit:20,lifetime:false,goal:['Hipertrofia','Condicionamento','Força'].includes(body.goal)?body.goal:'Hipertrofia',level:['Iniciante','Intermediário','Avançado'].includes(body.level)?body.level:'Iniciante',whatsapp:studentAccount&&typeof body.whatsapp==='string'?body.whatsapp.slice(0,24):'',training_days:[...new Set(days)]};
     const {error:insertError}=await admin.from('hpe_profiles').insert(newProfile);
     if(insertError){
       const {error:cleanupError}=await admin.auth.admin.deleteUser(created.user.id);

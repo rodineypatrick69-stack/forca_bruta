@@ -3,10 +3,10 @@ let handler,caller={id:'11111111-1111-1111-1111-111111111111',role:'personal',li
 function query(table){
   const filters={};
   const q={
-    select(){return q},eq(k,v){filters[k]=v;return q},or(){return q},order(){return q},
+    select(){return q},update(values){q.updateValues=values;return q},eq(k,v){filters[k]=v;return q},or(){return q},order(){return q},
     single:async()=>({data:caller,error:null}),
     maybeSingle:async()=>({data:profiles.find(p=>Object.entries(filters).every(([k,v])=>p[k]===v))||null,error:null}),
-    then(resolve,reject){return Promise.resolve({data:table==='hpe_profiles'?profiles:[],requests:[],count}).then(resolve,reject)},
+    then(resolve,reject){if(q.updateValues){for(const p of profiles)if(Object.entries(filters).every(([k,v])=>p[k]===v))Object.assign(p,q.updateValues);return Promise.resolve({data:null,error:null}).then(resolve,reject)}return Promise.resolve({data:table==='hpe_profiles'?profiles:[],requests:[],count}).then(resolve,reject)},
     insert:async p=>{if(insertError)return {error:insertError};profiles.push(p);return {error:null}}
   };return q;
 }
@@ -24,19 +24,22 @@ const request=(body,token='valid')=>new Request(origin,{method:'POST',headers:{o
  assert.equal((await handler(request(create,''))).status,401);
  let response=await handler(request(create));assert.equal(response.status,201);
  const result=await response.json(),profile=profiles[0];
- assert.equal(profile.role,'aluno');assert.equal(profile.personal_id,caller.id);assert.match(profile.access_code,/^[A-F0-9]{16}$/);
- assert.match(profile.email,/^aluno\.[a-f0-9]{16}@hpe\.invalid$/);assert.equal(result.profile.email,undefined);
+ assert.equal(profile.role,'aluno');assert.equal(profile.personal_id,caller.id);assert.match(profile.access_code,/^[0-9]{6}$/);assert.equal(profile.password_setup_required,true);
+ assert.match(profile.email,/^aluno\.[0-9a-f-]+@hpe\.invalid$/);assert.equal(result.profile.email,undefined);
  assert.ok(result.temporary_password.length>=16);
  response=await handler(request({action:'student_login',access_code:profile.access_code,password:result.temporary_password},''));assert.equal(response.status,200);
- assert.equal((await response.json()).session.access_token,'access');
+ const loginResult=await response.json();assert.equal(loginResult.session.access_token,'access');assert.equal(loginResult.must_set_password,true);
+ caller={id:profile.id,role:'aluno',password_setup_required:true};
+ response=await handler(request({action:'complete_student_password_setup'}));assert.equal(response.status,200);assert.equal(profile.password_setup_required,false);
+ caller={id:'11111111-1111-1111-1111-111111111111',role:'personal',lifetime:false,license_limit:20};
  const priorCode=profile.access_code;
  response=await handler(request({action:'reset_student_password',target:profile.id}));assert.equal(response.status,200);
- const reset=await response.json();assert.equal(reset.access_code,priorCode);assert.notEqual(reset.temporary_password,result.temporary_password);assert.equal(updated.length,1);
+ const reset=await response.json();assert.equal(reset.access_code,priorCode);assert.notEqual(reset.temporary_password,result.temporary_password);assert.equal(updated.length,1);assert.equal(profile.password_setup_required,true);
  caller={id:'33333333-3333-3333-3333-333333333333',role:'personal',lifetime:true,license_limit:20};
  response=await handler(request({action:'reset_student_password',target:profile.id}));assert.equal(response.status,404);assert.equal(updated.length,1);
  caller={id:'11111111-1111-1111-1111-111111111111',role:'personal',lifetime:false,license_limit:20};count=20;
  response=await handler(request(create));assert.equal(response.status,409);
  insertError={message:'LICENSE_LIMIT'};count=19;
  response=await handler(request(create));assert.equal(response.status,409);
- console.log('OK: criação sem e-mail, código único, login por código, redefinição vinculada ao personal e limite de licenças.');
+ console.log('OK: criação sem e-mail, código numérico, senha no primeiro acesso, redefinição vinculada ao personal e limite de licenças.');
 })().catch(e=>{console.error(e);process.exitCode=1});
