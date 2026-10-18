@@ -1,2 +1,2 @@
-window.HPE_APP_VERSION='44';
+window.HPE_APP_VERSION='45';
 document.querySelectorAll('.app-version').forEach(badge=>badge.textContent='Atualização '+window.HPE_APP_VERSION);
