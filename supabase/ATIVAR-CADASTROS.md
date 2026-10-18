@@ -1,16 +1,19 @@
-# Ativar cadastro pelo aplicativo
+# Ativar contas de alunos pelo personal
 
-Projeto: jzvzlcdaywqjhserndyf. A conta CEO já deve existir em hpe_profiles.
+Projeto Supabase: `jzvzlcdaywqjhserndyf`.
 
-1. No Supabase, SQL Editor → New query. Cole todo o conteúdo de accounts.sql e clique Run. É uma extensão da configuração já instalada; não substitua pelo arquivo antigo.
-2. Edge Functions → Deploy a new function → Via Editor. Use exatamente o nome hpe-accounts.
-3. No arquivo index.ts do editor, substitua o exemplo pelo conteúdo completo de functions/hpe-accounts/index.ts deste diretório.
-4. Clique Deploy function. Mantenha Verify JWT ativado. A função também valida o token e o perfil no banco.
-5. SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY são variáveis padrão do ambiente de Edge Functions. Não copie chaves secretas para o app nem para conversas. Se a função disser “Servidor ainda não configurado”, confira essas variáveis no painel de secrets do Supabase.
-6. Atualize o app, entre como Administrador e clique Atualizar contas. Use Cadastrar personal para criar uma conta real com senha inicial.
-7. Saia e entre como o personal criado. Use Meus alunos → Adicionar aluno. O servidor aplica o limite de 20 ou o uso vitalício.
-8. Entre como o aluno para confirmar o acesso. O cadastro não envia e-mail: entregue o acesso diretamente ao titular.
+## Alteração necessária no Supabase
 
-Os testes locais verificam tokens ausentes, bloqueio do aluno, papel forjado, limite, criação de professor e limpeza após falha. A execução SQL e a criação real ainda precisam ser verificadas após a publicação no Supabase. Não foram criadas contas de teste no projeto.
+1. Se ainda não estiver instalado, execute `accounts.sql` primeiro. Depois, no SQL Editor, execute `student-access.sql`. A migração adiciona códigos únicos de 16 caracteres, atribui códigos aos alunos existentes, mantém as senhas atuais e desativa o antigo autocadastro público.
+2. Em Edge Functions, atualize `hpe-accounts` com `functions/hpe-accounts/index.ts`. Defina `verify_jwt = false` conforme `config.toml`, pois o login do aluno começa sem sessão. A função valida manualmente a sessão em todas as ações administrativas.
+3. Confirme que as variáveis padrão `SUPABASE_URL`, `SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY` estão disponíveis. Nunca coloque a service role key no app.
+4. As origens permitidas são o Site HPE e `https://forcabruta.vercel.app`.
 
-Contas, vínculos e licenças ficam no Supabase após ativação. Treinos, agenda, finanças e mensagens permanecem locais; ainda não há sincronização desses registros. Cadastros locais antigos não são migrados automaticamente. Recuperação por e-mail depende de SMTP.
+## Uso
+
+- O personal entra em **Meus alunos → Cadastrar aluno**, informa nome e dados opcionais. O servidor cria a conta sem e-mail do aluno e gera o código e uma senha temporária.
+- Entregue os dados exibidos após o cadastro ao aluno. Ele entra com o código de 16 caracteres e a senha.
+- Em **Meus alunos**, o personal consulta o código e usa **Redefinir senha** para gerar outra senha temporária. O código não muda.
+- O acesso do personal continua usando e-mail. O aluno não pode criar sua própria conta nem solicitar redefinição por e-mail.
+
+A função não mostra e-mails internos de alunos na lista e só permite ao personal redefinir a senha de alunos vinculados a ele. O administrador pode continuar criando contas de personal.

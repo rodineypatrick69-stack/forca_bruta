@@ -1,2 +1,3 @@
 [functions.hpe-accounts]
-verify_jwt = true
+# O endpoint aceita login por código sem sessão; todas as outras ações validam o bearer JWT dentro da função.
+verify_jwt = false

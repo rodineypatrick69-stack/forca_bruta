@@ -1,5 +1,5 @@
 const vm=require('node:vm'),fs=require('node:fs'),assert=require('node:assert/strict');
-const nodes=new Map();const node=s=>nodes.get(s)||nodes.set(s,{innerHTML:'',textContent:'',hidden:true,close(){},querySelector(){return node('button')}}).get(s);
+const nodes=new Map();const node=s=>nodes.get(s)||nodes.set(s,{innerHTML:'',textContent:'',hidden:true,type:'email',name:'email',placeholder:'',autocomplete:'',required:false,value:'',firstChild:{textContent:''},close(){},focus(){},setAttribute(){},closest(){return {firstChild:{textContent:''}}},querySelector(){return node('button')},elements:{}}).get(s);
 let profile={id:'user-a',name:'CEO',role:'adm'},signedOut=0,entered=null,handler;
 const storage=new Map();const client={auth:{getUser:async()=>({data:{user:{id:'user-a'}}}),signOut:async()=>{signedOut++},onAuthStateChange:f=>{handler=f}},from:()=>({select:()=>({eq:()=>({maybeSingle:async()=>({data:profile,error:null})})})})};
 const c={window:{supabase:{createClient:()=>client}},document:{},$:node,esc:String,showLogin(){},enterApp:r=>{entered=r},loginRole:'aluno',data:{},done:new Set(),save(){},toast(){},modal(){},adminScreen:()=>'',logoutButton:{},sessionStorage:{setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},localStorage:{getItem:()=>null},FormData:class{},setTimeout:f=>f(),console};
