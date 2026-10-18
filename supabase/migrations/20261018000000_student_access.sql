@@ -1,5 +1,5 @@
 -- Código de acesso para alunos criados pelo personal.
--- Execute uma vez no SQL Editor do projeto jzvzlcdaywqjhserndyf.
+-- Execute no projeto jzvzlcdaywqjhserndyf.
 begin;
 
 alter table public.hpe_profiles add column if not exists email text;
@@ -29,24 +29,7 @@ alter table public.hpe_profiles drop constraint if exists hpe_student_access_cod
 alter table public.hpe_profiles drop constraint if exists hpe_student_access_code_required;
 alter table public.hpe_profiles
   add constraint hpe_student_access_code_format
-  check (access_code is null or access_code ~ '^[A-F0-9]{16}
-
--- Não permite contas de aluno criadas fora da função protegida.
-drop trigger if exists hpe_self_signup_profile on auth.users;
-drop function if exists public.hpe_register_student_profile();
-drop function if exists public.hpe_student_invite_status(text);
-drop function if exists public.hpe_my_student_invite();
-drop function if exists public.hpe_public_personals();
-drop table if exists public.hpe_student_invites;
-
--- O trigger de limite de licenças em hpe_profiles permanece ativo.
-notify pgrst,'reload schema';
-commit;
-
-select count(*) as alunos_com_codigo
-from public.hpe_profiles
-where role='aluno' and access_code is not null;
-);
+  check (access_code is null or access_code ~ '^[A-F0-9]{16}$');
 alter table public.hpe_profiles
   add constraint hpe_student_access_code_required
   check (role <> 'aluno' or access_code is not null);
@@ -57,7 +40,6 @@ drop function if exists public.hpe_register_student_profile();
 drop function if exists public.hpe_student_invite_status(text);
 drop function if exists public.hpe_my_student_invite();
 drop function if exists public.hpe_public_personals();
-drop table if exists public.hpe_student_invites;
 
 -- O trigger de limite de licenças em hpe_profiles permanece ativo.
 notify pgrst,'reload schema';
