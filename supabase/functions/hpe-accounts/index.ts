@@ -77,6 +77,27 @@ Deno.serve(async req=>{
       if(error){await admin.from('hpe_profiles').update({password_setup_required:false}).eq('id',student.id).eq('role','aluno');return reply(req,409,{error:'Não foi possível redefinir a senha. Tente novamente.'});}
       return reply(req,200,{access_code:student.access_code,temporary_password:password});
     }
+    if(body.action==='update_student'||body.action==='delete_student'){
+      if(!uuid(body.target))return reply(req,400,{error:'Identificador inválido.'});
+      let studentQuery=admin.from('hpe_profiles').select('id').eq('id',body.target).eq('role','aluno');
+      if(caller.role==='personal')studentQuery=studentQuery.eq('personal_id',caller.id);
+      const {data:student,error:studentError}=await studentQuery.maybeSingle();
+      if(studentError||!student)return reply(req,404,{error:'Aluno não encontrado na sua lista.'});
+      if(body.action==='delete_student'){
+        const {error}=await admin.auth.admin.deleteUser(student.id,false);
+        if(error)return reply(req,409,{error:'Não foi possível excluir a conta do aluno. Tente novamente.'});
+        return reply(req,200,{ok:true});
+      }
+      const name=typeof body.name==='string'?body.name.trim():'';
+      const goal=body.goal,level=body.level,days=body.days;
+      const whatsapp=typeof body.whatsapp==='string'?body.whatsapp.trim():'';
+      if(!name||name.length>80||!['Hipertrofia','Condicionamento','Força'].includes(goal)||!['Iniciante','Intermediário','Avançado'].includes(level)||!Array.isArray(days)||days.length>7||days.some(d=>!Number.isInteger(d)||d<0||d>6)||whatsapp.length>24||whatsapp&&!/^\+?[0-9\s().-]{8,24}$/.test(whatsapp))return reply(req,400,{error:'Confira nome, WhatsApp, objetivo, nível e dias de treino.'});
+      let update=admin.from('hpe_profiles').update({name,whatsapp,goal,level,training_days:[...new Set(days)]}).eq('id',student.id).eq('role','aluno');
+      if(caller.role==='personal')update=update.eq('personal_id',caller.id);
+      const {data:changed,error}=await update.select('id').maybeSingle();
+      if(error||!changed)return reply(req,409,{error:'Não foi possível salvar o perfil. Atualize a lista e tente novamente.'});
+      return reply(req,200,{ok:true});
+    }
     if(body.action!=='create')return reply(req,400,{error:'Operação desconhecida.'});
     const role=caller.role==='adm'?'personal':'aluno';
     const name=typeof body.name==='string'?body.name.trim():'';
