@@ -25,7 +25,7 @@ window.hpeReloadAccounts=async()=>{await hpeAccountsRefresh();render();toast(hpe
 function hpeAccountForm(kind){
   if(!hpeProfile||hpeProfile.role!==(kind==='personal'?'adm':'personal'))return;
   const studentForm=kind==='aluno';
-  modal(`<h2>${studentForm?'Cadastrar aluno':'Cadastrar personal'}</h2><p>${studentForm?'A conta será criada sem e-mail. O sistema gera um código de acesso e uma senha temporária.':'A conta do personal será criada no Supabase.'}</p><form id="hpeAccountForm"><label>Nome completo<input name="name" maxlength="80" required></label>${studentForm?'': '<label>E-mail<input name="email" type="email" required autocomplete="off"></label><label>Senha inicial<input name="password" type="password" minlength="8" maxlength="128" required autocomplete="new-password"></label>'}${studentForm?`<label>WhatsApp (opcional)<input name="whatsapp" type="tel" autocomplete="tel" placeholder="(11) 99999-9999" maxlength="24"></label><label>Objetivo<select name="goal"><option>Hipertrofia</option><option>Condicionamento</option><option>Força</option></select></label><label>Nível<select name="level"><option>Iniciante</option><option>Intermediário</option><option>Avançado</option></select></label><fieldset><legend>Dias de treino</legend>${weekdaysFull.map((day,i)=>`<label><input type="checkbox" name="days" value="${i}">${day}</label>`).join('')}</fieldset><p class="note">Entregue o código e a senha temporária ao aluno. Ele entra usando o código; não é necessário e-mail.</p>`:'<p>O personal começa com 20 licenças.</p>'}<p id="hpeAccountStatus" role="alert"></p><button class="primary">${studentForm?'Criar conta e gerar acesso':'Criar conta no Supabase'}</button></form>`);
+  modal(`<h2>${studentForm?'Cadastrar aluno':'Cadastrar personal'}</h2><p>${studentForm?'A conta será criada sem e-mail. O sistema gera um código de 6 números e uma senha temporária. No primeiro acesso, o aluno escolherá a senha pessoal.':'A conta do personal será criada no Supabase.'}</p><form id="hpeAccountForm"><label>Nome completo<input name="name" maxlength="80" required></label>${studentForm?'': '<label>E-mail<input name="email" type="email" required autocomplete="off"></label><label>Senha inicial<input name="password" type="password" minlength="8" maxlength="128" required autocomplete="new-password"></label>'}${studentForm?`<label>WhatsApp (opcional)<input name="whatsapp" type="tel" autocomplete="tel" placeholder="(11) 99999-9999" maxlength="24"></label><label>Objetivo<select name="goal"><option>Hipertrofia</option><option>Condicionamento</option><option>Força</option></select></label><label>Nível<select name="level"><option>Iniciante</option><option>Intermediário</option><option>Avançado</option></select></label><fieldset><legend>Dias de treino</legend>${weekdaysFull.map((day,i)=>`<label><input type="checkbox" name="days" value="${i}">${day}</label>`).join('')}</fieldset><p class="note">O código tem 6 números. Entregue também a senha temporária; no primeiro acesso, o aluno escolherá a senha pessoal. Não é necessário e-mail.</p>`:'<p>O personal começa com 20 licenças.</p>'}<p id="hpeAccountStatus" role="alert"></p><button class="primary">${studentForm?'Criar conta e gerar acesso':'Criar conta no Supabase'}</button></form>`);
   $('#hpeAccountForm').onsubmit=async event=>{
     event.preventDefault();const f=new FormData(event.target),button=event.target.querySelector('button'),status=$('#hpeAccountStatus');
     const whatsapp=studentForm?hpeNormalizeWhatsApp(f.get('whatsapp')):'';
@@ -35,15 +35,20 @@ function hpeAccountForm(kind){
       const created=await hpeAccountsCall({action:'create',name:f.get('name'),email:studentForm?'':f.get('email'),password:studentForm?'':f.get('password'),whatsapp:studentForm?whatsapp:'',goal:f.get('goal'),level:f.get('level'),days:f.getAll('days').map(Number)});
       event.target.reset();$('#modal').close();await hpeAccountsRefresh();render();
       if(studentForm){
-        hpeShowStudentCredentials(created.access_code,created.temporary_password,'Conta criada. Entregue estes dados ao aluno agora.');
+        hpeShowStudentCredentials(created.access_code,created.temporary_password,'Conta criada. Entregue estes dados ao aluno agora.',whatsapp);
       }else toast(hpeDirectoryLoaded?'Conta criada no Supabase.':'Conta criada; não foi possível atualizar a lista. Toque em Atualizar contas.');
     }catch(error){status.textContent=error.message}finally{button.disabled=false}
   };
 }
 let hpeCreatedStudentCredentials='';
-function hpeShowStudentCredentials(code,password,title){
+function hpeShowStudentCredentials(code,password,title,phone=''){
   hpeCreatedStudentCredentials=`Código de acesso: ${code}\nSenha temporária: ${password}`;
-  modal(`<h2>${esc(title)}</h2><p>Salve e entregue estes dados ao aluno. A senha temporária será exibida somente agora.</p><label>Código de acesso<input readonly value="${esc(code)}" onclick="this.select()"></label><label>Senha temporária<input readonly value="${esc(password)}" onclick="this.select()"></label><button class="primary" onclick="hpeCopyStudentCredentials()">Copiar dados de acesso</button><p id="hpeCredentialStatus" role="status"></p><p class="note">O aluno poderá usar o código e a senha para entrar. Se perder a senha, você poderá gerar outra na lista de alunos.</p>`);
+  const normalizedPhone=hpeNormalizeWhatsApp(phone)||'';
+  const message=`Olá! Seu acesso ao HPE Força Bruta foi criado.\n\nAcesse: https://forcabruta.vercel.app/\nPerfil: Sou aluno\nCódigo de acesso (6 números): ${code}\nSenha temporária: ${password}\n\nNo primeiro acesso, entre com esses dados e escolha sua senha pessoal. Guarde-a em segurança. Bons treinos!`;
+  modal(`<h2>${esc(title)}</h2><p>O código e a senha temporária são exibidos agora. No primeiro acesso, o aluno escolhe a senha pessoal.</p><label>Código de acesso<input readonly value="${esc(code)}" onclick="this.select()"></label><label>Senha temporária<input readonly value="${esc(password)}" onclick="this.select()"></label><button class="primary" onclick="hpeCopyStudentCredentials()">Copiar código e senha</button><label>Mensagem pronta para o WhatsApp<textarea id="hpeCredentialWhatsAppMessage" rows="8">${esc(message)}</textarea></label><a id="hpeCredentialWhatsAppLink" class="whatsapp-link" target="_blank" rel="noopener noreferrer">Compartilhar no WhatsApp</a><p id="hpeCredentialStatus" role="status"></p><p class="note">${normalizedPhone?'O WhatsApp abrirá a conversa com o número informado.':'Escolha a conversa do aluno no WhatsApp.'} Confira o destinatário antes de enviar.</p>`);
+  const link=$('#hpeCredentialWhatsAppLink'),messageField=$('#hpeCredentialWhatsAppMessage');
+  const updateLink=()=>{const destination=normalizedPhone?'https://wa.me/'+normalizedPhone+'?text=':'https://wa.me/?text=';link.href=destination+encodeURIComponent(messageField.value)};
+  messageField.oninput=updateLink;updateLink();
 }
 window.hpeCopyStudentCredentials=async()=>{try{await navigator.clipboard.writeText(hpeCreatedStudentCredentials);$('#hpeCredentialStatus').textContent='Dados copiados.'}catch{$('#hpeCredentialStatus').textContent='Selecione e copie os dois campos.'}};
 window.hpeConfirmStudentReset=id=>{
@@ -53,7 +58,7 @@ window.hpeConfirmStudentReset=id=>{
 };
 window.hpeResetStudentPassword=async id=>{
   if(hpeProfile?.role!=='personal')return;
-  try{const result=await hpeAccountsCall({action:'reset_student_password',target:id});hpeShowStudentCredentials(result.access_code,result.temporary_password,'Nova senha temporária gerada.');}
+  try{const result=await hpeAccountsCall({action:'reset_student_password',target:id});hpeShowStudentCredentials(result.access_code,result.temporary_password,'Nova senha temporária gerada.',profile.whatsapp);}
   catch(error){modal(`<h2>Não foi possível redefinir</h2><p>${esc(error.message)}</p><button onclick="$('#modal').close()">Fechar</button>`)}
 };
 window.addPersonal=()=>hpeAccountForm('personal');window.addStudent=()=>hpeAccountForm('aluno');
