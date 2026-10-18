@@ -5,7 +5,36 @@ let hpeProfile=null,hpeRecovery=false,hpeAuthVersion=0;
 const localLogin=showLogin,localEnter=enterApp;
 function hpeError(message){const error=$('#loginError');if(error){error.hidden=false;error.textContent=message}}
 function hpeSignedOut(){hpeProfile=null;window.hpeDataKey='hpe-pending-v1';sessionStorage.removeItem('forja-session');sessionStorage.removeItem('forja-identity');done.clear();$('#modal').close();showLogin(loginRole)}
-showLogin=function(selected=loginRole){localLogin(selected);$('#loginForm input[name=email]').placeholder='Seu e-mail cadastrado';$('.demo-access').innerHTML='<b>Login conectado ao Supabase</b><p>Use a senha cadastrada no Supabase. As contas antigas de demonstração não dão acesso.</p><button type="button" onclick="hpeForgotPassword()">Esqueci minha senha</button>';const note=$('.login-card > .note');if(note)note.textContent='Acesso autenticado. Confira o indicador de sincronização após entrar.';$('#loginForm').onsubmit=async event=>{event.preventDefault();if(!hpeAuth){hpeError('O serviço de login não carregou. Atualize a página.');return}const form=new FormData(event.target),button=event.target.querySelector('button.primary');button.disabled=true;try{const {data:result,error}=await hpeAuth.auth.signInWithPassword({email:form.get('email').trim().toLowerCase(),password:form.get('password')});if(error){hpeError('Não foi possível entrar. Confira o e-mail, a senha e a confirmação da conta.');return}await hpeOpenSession(result.session,selected)}catch{hpeError('Não foi possível conectar. Confira sua conexão e tente novamente.')}finally{button.disabled=false}}};window.showLogin=showLogin;
+showLogin=function(selected=loginRole){
+  localLogin(selected);
+  const loginInput=$('#loginForm input[name=email]');
+  loginInput.type=selected==='aluno'?'text':'email';
+  loginInput.name=selected==='aluno'?'access_code':'email';
+  loginInput.placeholder=selected==='aluno'?'Código fornecido pelo personal':'Seu e-mail cadastrado';
+  loginInput.autocomplete='username';
+  const loginLabel=loginInput.closest('label');if(loginLabel)loginLabel.firstChild.textContent=selected==='aluno'?'Código de acesso':'E-mail';
+  $('.demo-access').innerHTML=selected==='aluno'?'<b>Acesso do aluno</b><p>Use o código de acesso e a senha entregues pelo personal.</p><button type="button" onclick="hpeForgotPassword()">Preciso redefinir minha senha</button>':'<b>Login conectado ao Supabase</b><p>Use o e-mail cadastrado para entrar.</p><button type="button" onclick="hpeForgotPassword()">Esqueci minha senha</button>';
+  const note=$('.login-card > .note');if(note)note.textContent=selected==='aluno'?'Seu personal cria sua conta e pode redefinir sua senha.':'Acesso autenticado pelo Supabase.';
+  $('#loginForm').onsubmit=async event=>{
+    event.preventDefault();if(!hpeAuth){hpeError('O serviço de login não carregou. Atualize a página.');return}
+    const form=new FormData(event.target),button=event.target.querySelector('button.primary');button.disabled=true;
+    try{
+      if(selected==='aluno'){
+        const code=String(form.get('access_code')||'').trim().toUpperCase();
+        if(!/^[A-F0-9]{16}$/.test(code)){hpeError('Informe o código de 16 caracteres recebido do personal.');return}
+        const {data:result,error}=await hpeAuth.functions.invoke('hpe-accounts',{body:{action:'student_login',access_code:code,password:form.get('password')}});
+        if(error||!result?.session){hpeError('Código ou senha inválidos. Confira os dados recebidos do personal.');return}
+        const {data:sessionResult,error:setError}=await hpeAuth.auth.setSession({access_token:result.session.access_token,refresh_token:result.session.refresh_token});
+        if(setError||!sessionResult?.session){hpeError('Não foi possível iniciar sua sessão. Tente novamente.');return}
+        await hpeOpenSession(sessionResult.session,'aluno');
+      }else{
+        const {data:result,error}=await hpeAuth.auth.signInWithPassword({email:String(form.get('email')||'').trim().toLowerCase(),password:form.get('password')});
+        if(error){hpeError('Não foi possível entrar. Confira o e-mail, a senha e a confirmação da conta.');return}
+        await hpeOpenSession(result.session,selected);
+      }
+    }catch{hpeError('Não foi possível conectar. Confira sua internet e tente novamente.')}finally{button.disabled=false}
+  }
+};window.showLogin=showLogin;
 enterApp=function(selected){if(!hpeProfile||selected!==hpeProfile.role){showLogin();return}localEnter(selected)};
 function hpeEmptyData(profile){return {students:profile.role==='aluno'?[{id:1,name:profile.name,personalId:profile.personal_id,goal:'Definir objetivo',level:'Iniciante'}]:[],plans:{},logs:[],measurements:[],messages:[],personalAccounts:profile.role==='personal'?[{id:profile.id,name:profile.name,email:'Conta Supabase',limit:profile.license_limit,lifetime:profile.lifetime}]:[],studentAccounts:[],licenseRequests:[],dailyWater:{},studentGoals:{},excusedDays:{},appointments:[],monthlyFees:{},blockNames:{},alternatePlans:{}}}
 async function hpeOpenSession(session,selected){
@@ -31,6 +60,7 @@ async function hpeOpenSession(session,selected){
 }
 logoutButton.onclick=async()=>{++hpeAuthVersion;hpeRecovery=false;hpeSignedOut();if(hpeAuth)await hpeAuth.auth.signOut()};
 window.hpeForgotPassword=()=>{
+  if(loginRole==='aluno'){const code=$('#loginForm')?.elements.access_code?.value?.trim().toUpperCase()||'';modal(`<h2>Redefinir senha</h2><p>Peça ao seu personal para redefinir sua senha. Ele pode gerar uma senha temporária na lista de alunos.</p>${code?`<p>Seu código de acesso continua o mesmo: <strong>${esc(code)}</strong></p>`:''}<button class="primary" onclick="$('#modal').close()">Entendi</button>`);return}
   modal('<h2>Recuperar senha</h2><p>Informe o e-mail cadastrado no Supabase.</p><form id="hpeRecoveryRequest"><label>E-mail<input name="email" type="email" required autocomplete="email"></label><p id="hpeRecoveryStatus" role="status"></p><button class="primary">Solicitar link de recuperação</button></form><p class="note">O envio para alunos e professores depende do SMTP configurado no Supabase. O serviço padrão permite apenas testes com integrantes do projeto.</p>');
   $('#hpeRecoveryRequest').onsubmit=async event=>{event.preventDefault();const status=$('#hpeRecoveryStatus'),button=event.target.querySelector('button');button.disabled=true;try{if(!hpeAuth)throw Error();const {error}=await hpeAuth.auth.resetPasswordForEmail(new FormData(event.target).get('email').trim().toLowerCase(),{redirectTo:'https://forja-treino-academia.younggoby6.chatgpt.site/'});status.textContent=error?'Não foi possível solicitar o envio. O administrador deve conferir SMTP, destinatários autorizados e limites do Supabase.':'Solicitação recebida. Se houver uma conta elegível e o envio estiver configurado, você receberá o link. Confira também o spam.'}catch{status.textContent='Não foi possível conectar ao serviço. Tente novamente.'}finally{button.disabled=false}};
 };
