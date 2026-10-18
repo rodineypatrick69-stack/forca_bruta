@@ -11,5 +11,29 @@ hpeInstallDialog.querySelector('.close').onclick=()=>hpeInstallDialog.close();
 window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();hpeInstallPrompt=event;document.querySelector('#hpe-native-install').hidden=false});
 document.querySelector('#hpe-native-install').onclick=async()=>{if(!hpeInstallPrompt)return;const prompt=hpeInstallPrompt;hpeInstallPrompt=null;await prompt.prompt();const choice=await prompt.userChoice;document.querySelector('#hpe-native-install').hidden=true;if(choice.outcome==='accepted')hpeInstallDialog.close()};
 window.addEventListener('appinstalled',()=>{hpeInstallButton.hidden=true;hpeInstallPrompt=null;hpeInstallDialog.close()});
-if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+if('serviceWorker' in navigator)window.addEventListener('load',async()=>{
+ let registration;
+ try{
+  registration=await navigator.serviceWorker.register('sw.js',{updateViaCache:'none'});
+  let updatePending=false;
+  const safeReload=()=>{
+   if(!updatePending||document.visibilityState!=='visible'||document.querySelector('dialog[open]')||window.isWorkoutActive?.())return;
+   const key='hpe-update-applied-'+window.HPE_APP_VERSION;
+   if(sessionStorage.getItem(key))return;
+   sessionStorage.setItem(key,'1');location.reload();
+  };
+  const checkUpdate=async()=>{
+   try{
+    const response=await fetch(new URL('version.json?'+Date.now(),location.href),{cache:'no-store'});
+    if(response.ok){const current=await response.json();if(current.version&&current.version!==window.HPE_APP_VERSION){updatePending=true;await registration.update()}}
+   }catch{}
+   try{await registration.update()}catch{}
+  };
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{updatePending=true;safeReload()});
+  window.addEventListener('focus',()=>{checkUpdate();safeReload()});
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){checkUpdate();safeReload()}});
+  setInterval(()=>{checkUpdate();safeReload()},30*60*1000);
+  checkUpdate();
+ }catch{}
+});
 

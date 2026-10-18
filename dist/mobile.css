@@ -27,3 +27,5 @@
  fieldset>label{display:flex;align-items:center;gap:8px}
  dialog{width:calc(100vw - 24px);max-width:calc(100vw - 24px);padding:22px 18px}
 }
+
+@media(max-width:650px){header>div{gap:8px}.app-version{font-size:9px;padding:5px 7px}}
