@@ -8,8 +8,9 @@ vm.createContext(c);vm.runInContext(fs.readFileSync('dist/supabase-auth.js','utf
   await vm.runInContext("hpeOpenSession({user:{id:'user-a'}},'adm')",c);assert.equal(entered,'adm');assert.equal(c.window.hpeDataKey,'hpe-user-user-a');
   entered=null;await vm.runInContext("hpeOpenSession({user:{id:'user-a'}},'personal')",c);assert.equal(entered,null);assert.equal(signedOut,1);assert.match(node('#loginError').textContent,/outro perfil/);
   profile=null;await vm.runInContext("hpeOpenSession({user:{id:'user-a'}})",c);assert.equal(signedOut,2);assert.match(node('#loginError').textContent,/perfil autorizado/);
+  profile={id:'user-a',name:'Aluno',role:'aluno',personal_id:'personal-a',password_setup_required:true};entered=null;await vm.runInContext("hpeOpenSession({user:{id:'user-a'}},'aluno')",c);assert.equal(entered,null);assert.equal(vm.runInContext('hpePasswordSetupActive',c),true);assert.equal(typeof node('#hpeStudentFirstPassword').onsubmit,'function');
   entered=null;vm.runInContext("enterApp('adm')",c);assert.equal(entered,null);
   handler('PASSWORD_RECOVERY',{});assert.equal(vm.runInContext('hpeRecovery',c),true);assert.equal(typeof node('#hpeNewPassword').onsubmit,'function');
   await vm.runInContext('logoutButton.onclick()',c);assert.equal(storage.has('forja-session'),false);
-  console.log('OK: perfil validado, conta sem perfil bloqueada, perfil incorreto bloqueado, recuperação e saída.');
+  console.log('OK: perfil validado, conta sem perfil bloqueada, senha obrigatória no primeiro acesso, perfil incorreto bloqueado, recuperação e saída.');
 })().catch(e=>{console.error(e);process.exitCode=1});
