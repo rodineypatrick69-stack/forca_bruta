@@ -7,6 +7,7 @@
   if(!story||story.querySelector('.hpe-marketing'))return;
   story.insertAdjacentHTML('beforeend',`<section class="hpe-marketing"><h2>Treino e acompanhamento no mesmo lugar.</h2><p>Uma rotina mais organizada para quem orienta e mais clareza para quem treina.</p><div class="hpe-audience"><div><b>Para o personal</b><span>Organize alunos, monte planos e acompanhe a evolução.</span></div><div><b>Para o aluno</b><span>Consulte seu treino, veja os movimentos e registre seu progresso.</span></div></div><button class="primary hpe-demo-cta" type="button" onclick="hpeShowPublicDemo()">Ver demonstração do app</button></section>`);
  };
+ showLogin=window.showLogin;
  const studentInvite=new URLSearchParams(location.search).get('perfil')==='aluno';
  if(document.body.classList.contains('signed-out'))window.showLogin(studentInvite?'aluno':undefined);
  window.hpeShowPublicDemo=()=>{
