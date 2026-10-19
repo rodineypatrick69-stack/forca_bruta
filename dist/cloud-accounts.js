@@ -85,13 +85,15 @@ let hpeCreatedStudentCredentials='';
 function hpeShowStudentCredentials(code,password,title,phone=''){
   hpeCreatedStudentCredentials=`Código de acesso: ${code}\nSenha temporária: ${password}`;
   const normalizedPhone=hpeNormalizeWhatsApp(phone)||'';
-  const message=`Olá! Seu acesso ao HPE Força Bruta foi criado.\n\nAcesse: https://forcabruta.vercel.app/\nPerfil: Sou aluno\nCódigo de acesso (6 números): ${code}\nSenha temporária: ${password}\n\nNo primeiro acesso, entre com esses dados e escolha sua senha pessoal. Guarde-a em segurança. Bons treinos!`;
-  modal(`<h2>${esc(title)}</h2><p>O código e a senha temporária são exibidos agora. No primeiro acesso, o aluno escolhe a senha pessoal.</p><label>Código de acesso<input readonly value="${esc(code)}" onclick="this.select()"></label><label>Senha temporária<input readonly value="${esc(password)}" onclick="this.select()"></label><button class="primary" onclick="hpeCopyStudentCredentials()">Copiar código e senha</button><label>Mensagem pronta para o WhatsApp<textarea id="hpeCredentialWhatsAppMessage" rows="8">${esc(message)}</textarea></label><a id="hpeCredentialWhatsAppLink" class="whatsapp-link" target="_blank" rel="noopener noreferrer">📲 Enviar dados de acesso pelo WhatsApp</a><p id="hpeCredentialStatus" role="status"></p><p class="note">${normalizedPhone?'O WhatsApp abrirá a conversa com o número informado.':'Escolha a conversa do aluno no WhatsApp.'} A mensagem abrirá preenchida no WhatsApp. Confira o destinatário e toque em Enviar.</p>`);
+  const studentUrl=new URL(location.pathname,location.origin);studentUrl.searchParams.set('perfil','aluno');
+  const message=`Olá! Seu acesso ao HPE Força Bruta foi criado.\n\nAcesse: ${studentUrl.href}\nEscolha “Sou aluno”.\nCódigo de acesso (6 números): ${code}\nSenha temporária: ${password}\n\nNo primeiro acesso, entre com esses dados e crie sua senha pessoal. Nas próximas vezes, use o mesmo código e sua nova senha. Bons treinos!`;
+  modal(`<h2>${esc(title)}</h2><p>Compartilhe o link do app e os dados abaixo. No primeiro acesso, o aluno cria a senha pessoal.</p><label>Link direto para aluno<input id="hpeCredentialAppLink" readonly value="${esc(studentUrl.href)}" onclick="this.select()"></label><button type="button" onclick="hpeCopyStudentAppLink()">Copiar link do app</button><label>Código de acesso<input readonly value="${esc(code)}" onclick="this.select()"></label><label>Senha temporária<input readonly value="${esc(password)}" onclick="this.select()"></label><button class="primary" onclick="hpeCopyStudentCredentials()">Copiar código e senha</button><label>Mensagem pronta para o WhatsApp<textarea id="hpeCredentialWhatsAppMessage" rows="8">${esc(message)}</textarea></label><a id="hpeCredentialWhatsAppLink" class="whatsapp-link" target="_blank" rel="noopener noreferrer">📲 Enviar convite pelo WhatsApp</a><p id="hpeCredentialStatus" role="status"></p><p class="note">${normalizedPhone?'O WhatsApp abrirá a conversa com o número informado.':'Escolha a conversa do aluno no WhatsApp.'} Confira o destinatário e toque em Enviar.</p>`);
   const link=$('#hpeCredentialWhatsAppLink'),messageField=$('#hpeCredentialWhatsAppMessage');
   const updateLink=()=>{const destination=normalizedPhone?'https://wa.me/'+normalizedPhone+'?text=':'https://wa.me/?text=';link.href=destination+encodeURIComponent(messageField.value)};
   messageField.oninput=updateLink;updateLink();
 }
 window.hpeCopyStudentCredentials=async()=>{try{await navigator.clipboard.writeText(hpeCreatedStudentCredentials);$('#hpeCredentialStatus').textContent='Dados copiados.'}catch{$('#hpeCredentialStatus').textContent='Selecione e copie os dois campos.'}};
+window.hpeCopyStudentAppLink=async()=>{try{await navigator.clipboard.writeText($('#hpeCredentialAppLink').value);$('#hpeCredentialStatus').textContent='Link copiado.'}catch{$('#hpeCredentialAppLink').select();$('#hpeCredentialStatus').textContent='Selecione e copie o link.'}};
 window.hpeConfirmStudentReset=id=>{
   if(hpeProfile?.role!=='personal')return;const profile=hpeDirectory.find(p=>p.id===id&&p.role==='aluno'&&p.personal_id===hpeProfile.id);
   if(!profile)return toast('Aluno não encontrado na sua lista.');
@@ -99,7 +101,7 @@ window.hpeConfirmStudentReset=id=>{
 };
 window.hpeResetStudentPassword=async id=>{
   if(hpeProfile?.role!=='personal')return;
-  try{const result=await hpeAccountsCall({action:'reset_student_password',target:id});hpeShowStudentCredentials(result.access_code,result.temporary_password,'Nova senha temporária gerada.',profile.whatsapp);}
+  try{const targetProfile=hpeDirectory.find(p=>p.id===id&&p.role==='aluno'&&p.personal_id===hpeProfile.id);if(!targetProfile)throw new Error('Aluno não encontrado na sua lista.');const result=await hpeAccountsCall({action:'reset_student_password',target:id});hpeShowStudentCredentials(result.access_code,result.temporary_password,'Nova senha temporária gerada.',targetProfile.whatsapp);}
   catch(error){modal(`<h2>Não foi possível redefinir</h2><p>${esc(error.message)}</p><button onclick="$('#modal').close()">Fechar</button>`)}
 };
 window.addPersonal=()=>hpeAccountForm('personal');window.addStudent=()=>hpeAccountForm('aluno');
