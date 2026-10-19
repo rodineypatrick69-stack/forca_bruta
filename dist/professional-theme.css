@@ -1,0 +1,36 @@
+/* Shared HPE brand palette. Status and anatomy colors keep their meaning. */
+:root{--bg:#101012;--panel:#18181b;--line:#36363c;--muted:#b4b4bc;--green:#ff7900;--accent:#ff7900;--page-photo:url('background-training.webp');color-scheme:dark}
+body{background:#101012;color:#f5f5f7;isolation:isolate}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background-image:linear-gradient(90deg,rgba(10,10,12,.95),rgba(10,10,12,.56)),linear-gradient(0deg,#101012 4%,transparent 90%),var(--page-photo);background-size:cover;background-position:center top}
+body[data-background="coaching"]{--page-photo:url('background-coaching.webp')}
+body[data-background="progress"]{--page-photo:url('background-progress.webp')}
+body[data-background="records"]::before{opacity:.33}
+aside{background:#0d0d0fee;border-color:#303034}
+header{background:linear-gradient(180deg,#101012ed,#101012a8);border-color:#38383f}
+.card,dialog{background:#18181bf5;border-color:#38383f;box-shadow:0 12px 30px #0002}
+button{background:#27272c;border-color:#414149;color:#f5f5f7}
+button.primary,.primary,nav button.active{background:#ff7900;color:#17100b;border-color:#ff7900;font-weight:700}
+button.primary:hover,.primary:hover{background:#ff922e}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:2px solid #ff922e;outline-offset:3px}
+input,select,textarea,.password-field{background:#202024;color:#fafafa;border-color:#51515a}
+.tag{background:#ff790019;border-color:#ff790066;color:#ffad66}
+.eyebrow,.login-benefits,.stat small{color:#ffad66}
+.hero{background:linear-gradient(115deg,#272126f5,#17171ce8);border-color:#5e4131}
+.hero::after{color:#ff790021}.hero p{color:#c4c4cd}
+.coach,.demo-access,.water-card,.license-panel,.workout-controls,.training-tabs,.agenda-view-tabs,.body-panel{background:#202024;border-color:#414149}
+.avatar{background:#ff790022;color:#ffad66}
+.bubble{background:#29292f}.bubble.mine{background:#ff7900;color:#17100b}
+#toast{background:#ff7900;color:#17100b}
+.signed-out #login{background:transparent}.login-card{background:#151518f5;border-color:#48424a}.login-story h1{text-shadow:0 2px 25px #000a}.login-story p{color:#d2d2d9}
+[data-theme="claro"]{--bg:#f5f5f6;--panel:#fff;--line:#d8d8de;--muted:#5a5a65;--green:#b84d00;color-scheme:light}
+[data-theme="claro"] body{color:#202026;background:#f5f5f6}
+[data-theme="claro"] body::before{background-image:linear-gradient(90deg,#f5f5f6f5,#f5f5f6b8),var(--page-photo);opacity:.7}
+[data-theme="claro"] aside,[data-theme="claro"] header{background:#fffffff2}
+[data-theme="claro"] .card,[data-theme="claro"] dialog{background:#fffffff7;color:#202026;border-color:#d8d8de}
+[data-theme="claro"] .primary,[data-theme="claro"] button.primary,[data-theme="claro"] nav button.active{background:#ff7900;color:#17100b}
+[data-theme="claro"] .eyebrow,[data-theme="claro"] .login-benefits,[data-theme="claro"] .stat small{color:#a74600}
+[data-theme="claro"] .login-story p{color:#454551}[data-theme="claro"] .login-story h1{text-shadow:none}
+[data-theme="claro"] .hero,[data-theme="claro"] .coach,[data-theme="claro"] .water-card,[data-theme="claro"] .license-panel,[data-theme="claro"] .workout-controls,[data-theme="claro"] .training-tabs,[data-theme="claro"] .agenda-view-tabs,[data-theme="claro"] .demo-access{background:#f3f1ef;color:#29252a;border-color:#d8d2cc}
+[data-theme="claro"] .tag{color:#9d4300;background:#fff0e3;border-color:#e4b38c}
+@media(max-width:650px){body::before{background-position:62% top;background-image:linear-gradient(180deg,#10101275,#101012e8 65%),var(--page-photo)}aside nav{background:#121215f5;border-color:#414149}header{border-radius:0 0 12px 12px}.card{box-shadow:none}[data-theme="claro"] aside nav{background:#fffffff5}}
+@media(prefers-reduced-transparency:reduce){.card,dialog{background:#18181b}[data-theme="claro"] .card,[data-theme="claro"] dialog{background:white}}
