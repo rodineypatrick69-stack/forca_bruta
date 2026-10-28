@@ -46,5 +46,18 @@ const request=(body,token='valid')=>new Request(origin,{method:'POST',headers:{o
  response=await handler(request(create));assert.equal(response.status,409);
  insertError={message:'LICENSE_LIMIT'};count=19;
  response=await handler(request(create));assert.equal(response.status,409);
+ const teacher={id:'44444444-4444-4444-4444-444444444444',role:'personal',name:'Personal teste',email:'personal@example.invalid',license_limit:20,lifetime:false};profiles.push(teacher);
+ for(const action of ['update_personal','reset_personal_password']){
+  for(const role of ['aluno','personal']){caller={id:'55555555-5555-5555-5555-555555555555',role};assert.equal((await handler(request({action,target:teacher.id,name:'Novo nome',whatsapp:''}))).status,403)}
+ }
+ caller={id:'66666666-6666-6666-6666-666666666666',role:'adm'};
+ assert.equal((await handler(request({action:'update_personal',target:teacher.id,name:'Personal atualizado',whatsapp:'+5511999999999',role:'adm',license_limit:999,lifetime:true}))).status,200);
+ assert.equal(teacher.name,'Personal atualizado');assert.equal(teacher.whatsapp,'+5511999999999');assert.equal(teacher.role,'personal');assert.equal(teacher.license_limit,20);assert.equal(teacher.lifetime,false);
+ assert.equal((await handler(request({action:'update_personal',target:teacher.id,name:'',whatsapp:''}))).status,400);
+ assert.equal((await handler(request({action:'reset_personal_password',target:caller.id}))).status,404);
+ const updatesBefore=updated.length;
+ response=await handler(request({action:'reset_personal_password',target:teacher.id}));assert.equal(response.status,200);assert.equal(response.headers.get('Cache-Control'),'no-store');
+ const credentials=await response.json();assert.equal(credentials.email,teacher.email);assert.ok(credentials.new_password.length>=18);assert.equal(updated.length,updatesBefore+1);assert.equal(updated.at(-1).id,teacher.id);assert.equal(updated.at(-1).password,credentials.new_password);assert.equal(teacher.password,undefined);
+ console.log('OK: personal edit/reset admin-only, target validation, safe field allowlist and generated password.');
  console.log('OK: criação/login/reset, edição de perfil, exclusão com verificação do personal e limite de licenças.');
 })().catch(e=>{console.error(e);process.exitCode=1});

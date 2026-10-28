@@ -64,6 +64,24 @@ Deno.serve(async req=>{
       if(error)return reply(req,409,{error:'Operação não permitida ou já resolvida. Atualize a lista.'});
       return reply(req,200,{ok:true});
     }
+    if(body.action==='update_personal'||body.action==='reset_personal_password'){
+      if(caller.role!=='adm')return reply(req,403,{error:'Apenas o administrador pode gerenciar personais.'});
+      if(!uuid(body.target))return reply(req,400,{error:'Identificador inválido.'});
+      const {data:personal,error:personalError}=await admin.from('hpe_profiles').select('id,name,email,role').eq('id',body.target).eq('role','personal').maybeSingle();
+      if(personalError||!personal)return reply(req,404,{error:'Personal não encontrado. Atualize a lista.'});
+      if(body.action==='reset_personal_password'){
+        const password=temporaryPassword();
+        const {error}=await admin.auth.admin.updateUserById(personal.id,{password});
+        if(error)return reply(req,409,{error:'Não foi possível gerar a nova senha. Tente novamente.'});
+        return reply(req,200,{email:personal.email,new_password:password});
+      }
+      const name=typeof body.name==='string'?body.name.trim():'';
+      const whatsapp=typeof body.whatsapp==='string'?body.whatsapp.trim():'';
+      if(name.length<2||name.length>80||whatsapp.length>24||(whatsapp&&!/^\+?[0-9\s().-]{8,24}$/.test(whatsapp)))return reply(req,400,{error:'Confira o nome e o WhatsApp do personal.'});
+      const {data:changed,error}=await admin.from('hpe_profiles').update({name,whatsapp}).eq('id',personal.id).eq('role','personal').select('id').maybeSingle();
+      if(error||!changed)return reply(req,409,{error:'Não foi possível salvar o perfil. Atualize a lista e tente novamente.'});
+      return reply(req,200,{ok:true});
+    }
     if(body.action==='reset_student_password'){
       if(!uuid(body.target))return reply(req,400,{error:'Identificador inválido.'});
       let studentQuery=admin.from('hpe_profiles').select('id,personal_id,access_code,role').eq('id',body.target).eq('role','aluno');

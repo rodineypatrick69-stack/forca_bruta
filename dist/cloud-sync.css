@@ -2,3 +2,4 @@
 
 /* Routine synchronization continues without floating notifications. */
 .hpe-sync-bar{display:none!important}
+.personal-admin-actions{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}.personal-admin-actions button{min-height:44px}#hpePersonalEditForm input,#hpePersonalCredentialEmail,#hpePersonalCredentialPassword{width:100%;min-height:44px}#hpePersonalCredentialPassword{font-family:monospace;font-size:18px}

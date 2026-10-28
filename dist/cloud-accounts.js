@@ -2,7 +2,7 @@ let hpeDirectory=[],hpeRequests=[],hpeDirectoryError='',hpeDirectoryLoaded=false
 async function hpeAccountsCall(body){ if(window.hpeNetworkAllowed?.()===false)throw Error('Desative o modo offline e conecte à internet para gerenciar contas.');
   if(!hpeAuth||!hpeProfile)throw Error('Entre novamente para gerenciar contas.');
   const {data:result,error}=await hpeAuth.functions.invoke('hpe-accounts',{body});
-  if(error){let message='Cadastro indisponível. Atualize a função hpe-accounts e aplique student-signup.sql no Supabase.';try{const response=await error.context?.json();if(response?.error)message=response.error}catch{}throw Error(message)}
+  if(error){let message='Cadastro indisponível. Atualize a função hpe-accounts e aplique student-signup.sql no Supabase.';try{const response=await error.context?.json();if(response?.error)message=response.error==='Operação desconhecida.'&&['update_personal','reset_personal_password'].includes(body.action)?'Esta função precisa ser ativada no servidor do HPE. Solicite a atualização ao responsável pelo aplicativo.':response.error}catch{}throw Error(message)}
   if(result?.error)throw Error(result.error);return result;
 }
 async function hpeAccountsRefresh(){ if(window.hpeNetworkAllowed?.()===false)return;
@@ -109,8 +109,41 @@ async function hpeAccountMutation(body){try{await hpeAccountsCall(body);await hp
 window.setLifetime=(id,enabled)=>hpeAccountMutation({action:'lifetime',target:id,enabled});
 window.requestLicenses=()=>hpeAccountMutation({action:'request'});
 window.resolveLicenses=(id,approve)=>hpeAccountMutation({action:approve?'approve':'reject',target:id});
-adminScreen=function(){return heading('ADMINISTRAÇÃO · SUPABASE','Professores e licenças.','Contas, limites e uso vitalício controlados no servidor.',`<button onclick="hpeReloadAccounts()">Atualizar contas</button><button class="primary" onclick="addPersonal()">+ Cadastrar personal</button>`)+`${hpeDirectoryError?`<section class="card"><h2>Ativação do cadastro pendente</h2><p>${esc(hpeDirectoryError)}</p></section>`:''}<div class="grid">${hpeDirectory.filter(p=>p.role==='personal').map(p=>`<section class="card"><h2>${esc(p.name)}</h2><p>${esc(p.email||'')}</p><span class="tag">${hpeDirectory.filter(s=>s.role==='aluno'&&s.personal_id===p.id).length} / ${p.lifetime?'∞':p.license_limit} LICENÇAS</span><p>${p.lifetime?'Uso vitalício · alunos ilimitados':'Limite de alunos ativo'}</p><button aria-pressed="${p.lifetime}" onclick="setLifetime('${p.id}',${!p.lifetime})">${p.lifetime?'Desativar':'Ativar'} uso vitalício</button></section>`).join('')||'<section class="card"><p>Nenhum personal carregado do Supabase.</p></section>'}</div><section class="card"><h2>Solicitações de +20 licenças</h2>${hpeRequests.map(r=>`<div class="listrow"><div><b>${esc(hpeDirectory.find(p=>p.id===r.personal_id)?.name||'Personal')}</b><p>${esc(r.status)}</p></div>${r.status==='pendente'?`<button onclick="resolveLicenses('${r.id}',true)">Aprovar +20</button><button onclick="resolveLicenses('${r.id}',false)">Recusar</button>`:''}</div>`).join('')||'<p>Nenhuma solicitação carregada.</p>'}</section><p class="note">Contas e licenças no servidor. Confira o indicador para sincronizar os registros entre aparelhos da mesma conta. Treinos, resultados e conversa são compartilhados com os alunos vinculados.</p>`};
+adminScreen=function(){return heading('ADMINISTRAÇÃO · SUPABASE','Professores e licenças.','Contas, limites e uso vitalício controlados no servidor.',`<button onclick="hpeReloadAccounts()">Atualizar contas</button><button class="primary" onclick="addPersonal()">+ Cadastrar personal</button>`)+`${hpeDirectoryError?`<section class="card"><h2>Ativação do cadastro pendente</h2><p>${esc(hpeDirectoryError)}</p></section>`:''}<div class="grid">${hpeDirectory.filter(p=>p.role==='personal').map(p=>`<section class="card"><h2>${esc(p.name)}</h2><p>${esc(p.email||'')}</p><span class="tag">${hpeDirectory.filter(s=>s.role==='aluno'&&s.personal_id===p.id).length} / ${p.lifetime?'∞':p.license_limit} LICENÇAS</span><p>${p.lifetime?'Uso vitalício · alunos ilimitados':'Limite de alunos ativo'}</p><div class="personal-admin-actions"><button onclick="hpeEditPersonalProfile('${p.id}')">Editar perfil</button><button onclick="hpeConfirmPersonalReset('${p.id}')">Gerar nova senha</button></div><button aria-pressed="${p.lifetime}" onclick="setLifetime('${p.id}',${!p.lifetime})">${p.lifetime?'Desativar':'Ativar'} uso vitalício</button></section>`).join('')||'<section class="card"><p>Nenhum personal carregado do Supabase.</p></section>'}</div><section class="card"><h2>Solicitações de +20 licenças</h2>${hpeRequests.map(r=>`<div class="listrow"><div><b>${esc(hpeDirectory.find(p=>p.id===r.personal_id)?.name||'Personal')}</b><p>${esc(r.status)}</p></div>${r.status==='pendente'?`<button onclick="resolveLicenses('${r.id}',true)">Aprovar +20</button><button onclick="resolveLicenses('${r.id}',false)">Recusar</button>`:''}</div>`).join('')||'<p>Nenhuma solicitação carregada.</p>'}</section><p class="note">Contas e licenças no servidor. Confira o indicador para sincronizar os registros entre aparelhos da mesma conta. Treinos, resultados e conversa são compartilhados com os alunos vinculados.</p>`};
 const accountRender=render;render=function(){accountRender();if(hpeProfile?.role==='personal')$('#content').insertAdjacentHTML('afterbegin',`<section class="card"><div class="row"><b>Contas e licenças · Supabase</b><button onclick="hpeReloadAccounts()">Atualizar contas</button></div><p>${esc(hpeDirectoryError||'Cadastre o aluno pelo nome. O sistema gera o código de acesso e a senha temporária.')}</p></section>`)};
 
 
 
+
+window.hpeEditPersonalProfile=id=>{
+ if(hpeProfile?.role!=='adm')return;
+ const personal=hpeDirectory.find(p=>p.id===id&&p.role==='personal');if(!personal)return toast('Personal não encontrado. Atualize a lista.');
+ modal(`<h2>Editar perfil do personal</h2><form id="hpePersonalEditForm"><label>Nome completo<input name="name" value="${esc(personal.name)}" minlength="2" maxlength="80" required></label><label>WhatsApp (opcional)<input name="whatsapp" type="tel" value="${esc(personal.whatsapp||'')}" maxlength="24" placeholder="(11) 99999-9999"></label><label>E-mail de acesso<input type="email" value="${esc(personal.email||'')}" readonly></label><p id="hpePersonalEditStatus" role="alert"></p><button class="primary">Salvar perfil</button><button type="button" onclick="$('#modal').close()">Cancelar</button></form>`);
+ $('#hpePersonalEditForm').onsubmit=async event=>{
+  event.preventDefault();const form=event.target,button=form.querySelector('.primary'),status=$('#hpePersonalEditStatus');if(button.disabled)return;
+  const f=new FormData(form),whatsapp=hpeNormalizeWhatsApp(f.get('whatsapp'));
+  if(whatsapp===null){status.textContent='Informe um WhatsApp válido com DDD ou deixe em branco.';return}
+  button.disabled=true;status.textContent='Salvando…';
+  try{await hpeAccountsCall({action:'update_personal',target:id,name:String(f.get('name')||'').trim(),whatsapp});await hpeAccountsRefresh();$('#modal').close();render();toast(hpeDirectoryLoaded?'Perfil do personal atualizado.':'Perfil salvo. Atualize a lista para conferir.')}catch(error){status.textContent=error.message}finally{button.disabled=false}
+ };
+};
+window.hpeConfirmPersonalReset=id=>{
+ if(hpeProfile?.role!=='adm')return;
+ const personal=hpeDirectory.find(p=>p.id===id&&p.role==='personal');if(!personal)return toast('Personal não encontrado. Atualize a lista.');
+ modal(`<h2>Nova senha para ${esc(personal.name)}</h2><p>A senha anterior deixará de funcionar. O e-mail de acesso continuará sendo <strong>${esc(personal.email||'')}</strong>.</p><p>A nova senha aparecerá nesta janela para você copiar e entregar ao personal.</p><button class="primary" id="hpePersonalResetButton" onclick="hpeResetPersonalPassword('${personal.id}')">Gerar nova senha agora</button><button onclick="$('#modal').close()">Cancelar</button><p id="hpePersonalResetStatus" role="alert"></p>`);
+};
+window.hpeResetPersonalPassword=async id=>{
+ if(hpeProfile?.role!=='adm')return;
+ const button=$('#hpePersonalResetButton'),status=$('#hpePersonalResetStatus');if(!button||button.disabled)return;
+ if(!hpeDirectory.some(p=>p.id===id&&p.role==='personal'))return;
+ button.disabled=true;status.textContent='Gerando nova senha…';
+ try{
+  const result=await hpeAccountsCall({action:'reset_personal_password',target:id});
+  modal(`<h2>Nova senha gerada</h2><p>Copie e entregue os dados ao personal. A senha não fica salva nesta tela após fechar.</p><label>E-mail de acesso<input id="hpePersonalCredentialEmail" readonly value="${esc(result.email||'')}"></label><label>Nova senha<input id="hpePersonalCredentialPassword" readonly value="${esc(result.new_password)}" autocomplete="off" onclick="this.select()"></label><button class="primary" onclick="hpeCopyPersonalCredentials()">Copiar e-mail e senha</button><button onclick="$('#modal').close()">Fechar</button><p id="hpePersonalCredentialStatus" role="status"></p>`);
+ }catch(error){status.textContent=error.message;button.disabled=false}
+};
+window.hpeCopyPersonalCredentials=async()=>{
+ if(hpeProfile?.role!=='adm')return;const email=$('#hpePersonalCredentialEmail'),password=$('#hpePersonalCredentialPassword'),status=$('#hpePersonalCredentialStatus');if(!email||!password)return;
+ try{await navigator.clipboard.writeText(`E-mail: ${email.value}\nSenha: ${password.value}`);status.textContent='Dados copiados.'}catch{password.select();status.textContent='Selecione e copie os campos acima.'}
+};
+$('#modal').addEventListener('close',()=>{const field=$('#hpePersonalCredentialPassword');if(field)field.value=''});
