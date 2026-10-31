@@ -1,0 +1,13 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+let saves=0;const a={id:'appointment-1',student:7,time:'10:00',duration:60};
+const ctx={window:{},data:{appointments:[a]},role:'personal',todayKey:()=> '2026-10-31',appointmentsOn:key=>['2026-10-31','2026-11-07'].includes(key)?[a]:[],ownsStudent:id=>id===7,save:()=>saves++,render:()=>{},tickAppointments:()=>{},toast:()=>{}};
+vm.createContext(ctx);vm.runInContext(fs.readFileSync('dist/agenda-views.js','utf8'),ctx);
+ctx.window.setAppointmentCompleted(a.id,'2026-10-31',true);
+assert.equal(saves,1);assert.equal(vm.runInContext("agendaStatus(data.appointments[0],'2026-10-31')",ctx),'CONCLUÍDO');
+assert.equal(vm.runInContext("appointmentCompleted(data.appointments[0],'2026-11-07')",ctx),false);
+ctx.data=JSON.parse(JSON.stringify(ctx.data));assert.equal(vm.runInContext("appointmentCompleted(data.appointments[0],'2026-10-31')",ctx),true);
+ctx.window.setAppointmentCompleted(a.id,'2026-11-07',true);assert.equal(saves,1);
+ctx.role='aluno';ctx.window.setAppointmentCompleted(a.id,'2026-10-31',false);assert.equal(saves,1);
+ctx.role='personal';ctx.ownsStudent=()=>false;ctx.window.setAppointmentCompleted(a.id,'2026-10-31',false);assert.equal(saves,1);
+ctx.ownsStudent=()=>true;ctx.window.setAppointmentCompleted(a.id,'2026-10-31',false);assert.equal(saves,2);assert.equal(vm.runInContext("appointmentCompleted(data.appointments[0],'2026-10-31')",ctx),false);
+console.log('PASS: conclusão por data, persistência, desfazer, data futura e permissões.');
