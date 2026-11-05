@@ -1,0 +1,27 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const ctx={window:{addEventListener(){}},document:{addEventListener(){}},render(){},setInterval(){},todayKey:()=> '2026-11-04',Date};vm.createContext(ctx);vm.runInContext(fs.readFileSync('dist/student-fee-reminder.js','utf8'),ctx);
+const calc=(rows,day)=>JSON.parse(vm.runInContext(`JSON.stringify(hpeOverdueFees(${JSON.stringify(rows)},${JSON.stringify(day)}))`,ctx));
+const f={month:'2026-10',expected:30000,received:10000,due:10};
+assert.deepEqual(calc([f],'2026-11-04'),[{month:'2026-10',dueDate:'2026-10-10',balance:20000}]);
+assert.equal(calc([{...f,received:30000}],'2026-11-04').length,0);
+assert.equal(calc([f],'2026-10-10').length,0);
+assert.equal(calc([f],'2026-10-09').length,0);
+assert.equal(calc([{...f,month:'2026-02',due:31}],'2026-03-01')[0].dueDate,'2026-02-28');
+assert.equal(calc([{...f,month:'2028-02',due:31}],'2028-03-01')[0].dueDate,'2028-02-29');
+assert.equal(calc([{...f,expected:0},{...f,month:'<invalid>'},{...f,due:0},{...f,received:-1}], '2026-11-04').length,0);
+assert.equal(calc([f,{...f,month:'2026-09'}],'2026-11-04')[0].month,'2026-09');
+console.log('PASS: atraso, pagamento parcial/total, dia do vencimento, meses anteriores, fevereiro e dados inválidos.');
+(async()=>{
+ let box=null,response=[f];
+ Object.assign(ctx,{role:'aluno',hpeProfile:{id:'student-a',role:'aluno'},money:n=>String(n/100),toast(){},hpeAuth:{rpc:async()=>({data:response})}});
+ ctx.window.hpeNetworkAllowed=()=>true;
+ ctx.document.body={classList:{contains:()=>false}};
+ ctx.document.getElementById=id=>id==='content'?{prepend:b=>{box=b}}:box;
+ ctx.document.createElement=()=>({setAttribute(){},remove(){box=null}});
+ await vm.runInContext('hpeRefreshFeeReminder(true)',ctx);assert(box&&box.innerHTML.includes('200'));
+ response=[{...f,received:30000}];await vm.runInContext('hpeRefreshFeeReminder(true)',ctx);assert.equal(box,null);
+ let resolve;ctx.hpeAuth.rpc=()=>new Promise(r=>resolve=r);
+ const pending=vm.runInContext('hpeRefreshFeeReminder(true)',ctx);ctx.hpeProfile=null;
+ resolve({data:[f]});await pending;assert.equal(box,null);
+ console.log('PASS: aviso exibido, removido após pagamento e resposta tardia após logout ignorada.');
+})().catch(e=>{console.error(e);process.exitCode=1});
