@@ -2,8 +2,9 @@ let hpeSharedOwner=null,hpeSharedReady=false,hpeSharedBusy=false,hpeSharedTimer,
 const sharedBar=document.createElement('section');sharedBar.className='hpe-shared-bar';sharedBar.hidden=true;sharedBar.innerHTML='<span id="hpeSharedStatus" role="status"></span><button onclick="hpeSharedRefresh()">Atualizar acompanhamento</button>';document.body.append(sharedBar);
 function hpeSharedStatus(text){$('#hpeSharedStatus').textContent=text;sharedBar.hidden=!hpeProfile||hpeProfile.role==='adm'}
 function hpeSharedStudents(){return hpeProfile?.role==='aluno'?data.students.filter(s=>s.id===1):visibleStudents().filter(s=>s.supabaseId)}
-function hpeStudentPayload(s,kind){const id=s.id;return kind==='program'?{plan:data.plans[id]||[],alternate:data.alternatePlans?.[id]||{},names:data.blockNames?.[id]||{},goals:data.studentGoals[id]||{},excused:data.excusedDays[id]||{}}:{logs:data.logs.filter(l=>l.student===id),measurements:data.measurements.filter(m=>m.student===id),water:data.dailyWater[id]||{}}}
-function hpeApplyStudent(s,kind,p){const id=s.id;if(kind==='program'){data.plans[id]=p.plan||[];data.alternatePlans??={};data.alternatePlans[id]=p.alternate||{};data.blockNames[id]=p.names||{};data.studentGoals[id]=p.goals||{};data.excusedDays[id]=p.excused||{}}else{data.logs=data.logs.filter(l=>l.student!==id).concat((p.logs||[]).map(l=>({...l,student:id})));data.measurements=data.measurements.filter(m=>m.student!==id).concat((p.measurements||[]).map(m=>({...m,student:id})));data.dailyWater[id]=p.water||{}}}
+function hpeCoachAttendance(s){if(hpeProfile?.role!=='personal')return data.appointmentAttendance?.[s.id]||{};const attendance={};for(const dates of Object.values(data.appointmentCompletions||{}))for(const [key,entry] of Object.entries(dates||{}))if(Number(entry?.student)===Number(s.id))attendance[key]={completedAt:entry.completedAt||null};return attendance}
+function hpeStudentPayload(s,kind){const id=s.id;return kind==='program'?{plan:data.plans[id]||[],alternate:data.alternatePlans?.[id]||{},names:data.blockNames?.[id]||{},goals:data.studentGoals[id]||{},excused:data.excusedDays[id]||{},attendance:hpeCoachAttendance(s)}:{logs:data.logs.filter(l=>l.student===id),measurements:data.measurements.filter(m=>m.student===id),water:data.dailyWater[id]||{}}}
+function hpeApplyStudent(s,kind,p){const id=s.id;if(kind==='program'){data.plans[id]=p.plan||[];data.alternatePlans??={};data.alternatePlans[id]=p.alternate||{};data.blockNames[id]=p.names||{};data.studentGoals[id]=p.goals||{};data.excusedDays[id]=p.excused||{};data.appointmentAttendance??={};data.appointmentAttendance[id]=p.attendance||{}}else{data.logs=data.logs.filter(l=>l.student!==id).concat((p.logs||[]).map(l=>({...l,student:id})));data.measurements=data.measurements.filter(m=>m.student!==id).concat((p.measurements||[]).map(m=>({...m,student:id})));data.dailyWater[id]=p.water||{}}}
 function hpeSharedMeta(){localStorage.setItem('hpe-shared-meta-'+hpeSharedOwner,JSON.stringify(hpeSharedCache))}
 async function hpeSharedStart(profile){
  if(window.hpeNetworkAllowed?.()===false)return;
@@ -40,7 +41,7 @@ window.hpeSharedRefresh=async(initial=false)=>{
  if(hpeSharedReady&&!hpeSharedConflict)await hpeSharedFlush();
 };
 function profileCanWrite(kind){return hpeProfile?.role==='personal'||(hpeProfile?.role==='aluno'&&kind==='progress')}
-function hpeEmptyStudentPayload(kind){return kind==='program'?{plan:[],alternate:{},names:{},goals:{},excused:{}}:{logs:[],measurements:[],water:{}}}
+function hpeEmptyStudentPayload(kind){return kind==='program'?{plan:[],alternate:{},names:{},goals:{},excused:{},attendance:{}}:{logs:[],measurements:[],water:{}}}
 async function hpeSharedFlush(){
  if(window.hpeNetworkAllowed?.()===false)return;
  if(!hpeSharedReady||hpeSharedBusy||hpeSharedConflict||hpeProfile?.id!==hpeSharedOwner)return;
