@@ -1,0 +1,39 @@
+
+.consult-intro{display:flex;align-items:center;justify-content:space-between;gap:24px;margin:24px 0;background:linear-gradient(115deg,#272727,#1a1a1a);border-color:#414141}
+.consult-intro h2{margin:8px 0}.consult-intro p{max-width:720px}
+.consult-layout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin:18px 0}
+.consult-layout>.card{min-width:0}
+.consult-form{margin-top:20px}
+.consult-form label{min-width:0}
+.consult-fieldset{border:1px solid var(--line);border-radius:10px;padding:16px}
+.consult-fieldset legend{padding:0 6px;color:#f3f3f4;font-weight:600}
+.consult-days{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.consult-days label,.consult-consent{display:flex;align-items:flex-start;gap:9px;background:#222;padding:10px;border-radius:8px;line-height:1.4}
+.consult-days input,.consult-consent input{accent-color:var(--green);margin-top:2px}
+.consult-consent{font-size:12px}
+.consult-shortcuts{display:flex;flex-wrap:wrap;gap:9px;margin-top:16px}
+.consult-status{display:inline-flex;align-items:center;gap:6px;border:1px solid #484848;border-radius:999px;padding:6px 10px;background:#252525;color:#dfe3dc;font-size:11px;white-space:normal}
+.consult-status.pending{border-color:#795a2e;color:#ffd28a}
+.consult-status.new{border-color:#ad5c27;color:#ffb57d}
+.consult-status.done{border-color:#45613c;color:#b8e6a8}
+.consult-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:22px 0}
+.consult-facts>div,.consult-checkin-summary>div{display:grid;gap:5px;padding:14px;border:1px solid var(--line);border-radius:10px;background:#202020}
+.consult-facts small,.consult-checkin-summary small,.consult-answer small{color:var(--muted);font-size:11px}
+.consult-facts b,.consult-checkin-summary b{overflow-wrap:anywhere}
+.consult-answer{padding:12px 14px;border-left:3px solid var(--green);border-radius:7px;background:#202020;margin:12px 0}
+.consult-answer p{margin:5px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.consult-checkin-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:18px 0}
+.consult-history{margin-top:24px}
+.consult-history h3{margin-bottom:6px}
+.consult-history-item,.consult-roster-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.consult-history-item p,.consult-roster-item p{margin:4px 0 0;font-size:12px}
+.consult-history-item>div,.consult-roster-item>div{min-width:0}
+.consult-roster{margin:18px 0}
+.consult-roster-list{margin-top:14px}
+.consult-roster-item button{padding:9px 12px}
+.consult-empty{border:1px dashed #484848;border-radius:10px;margin-top:16px}
+.consult-evolution{margin-top:18px}
+.consult-stat-date{font-size:22px!important;line-height:1.35;overflow-wrap:anywhere}
+.consult-stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:850px){.consult-layout{grid-template-columns:1fr}.consult-intro{align-items:flex-start;flex-direction:column}.consult-roster-item{flex-wrap:wrap}.consult-roster-item>div{flex:1 1 60%}}
+@media(max-width:650px){.consult-stats{grid-template-columns:1fr}.consult-facts{grid-template-columns:1fr 1fr}.consult-days{grid-template-columns:1fr 1fr}.consult-history-item,.consult-roster-item{align-items:flex-start;flex-direction:column}.consult-roster-item button{width:100%}.consult-intro{padding:18px}}
