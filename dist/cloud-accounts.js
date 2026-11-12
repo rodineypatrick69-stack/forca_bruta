@@ -1,17 +1,24 @@
-let hpeDirectory=[],hpeRequests=[],hpeDirectoryError='',hpeDirectoryLoaded=false;
+let hpeDirectory=[],hpeRequests=[],hpeDirectoryError='',hpeDirectoryWarning='',hpeDirectoryLoaded=false,hpeDirectoryLoading=false;
 async function hpeAccountsCall(body){ if(window.hpeNetworkAllowed?.()===false)throw Error('Desative o modo offline e conecte à internet para gerenciar contas.');
   if(!hpeAuth||!hpeProfile)throw Error('Entre novamente para gerenciar contas.');
   const {data:result,error}=await hpeAuth.functions.invoke('hpe-accounts',{body});
   if(error){let message='Cadastro indisponível. Atualize a função hpe-accounts e aplique student-signup.sql no Supabase.';try{const response=await error.context?.json();if(response?.error)message=response.error==='Operação desconhecida.'&&['update_personal','reset_personal_password'].includes(body.action)?'Esta função precisa ser ativada no servidor do HPE. Solicite a atualização ao responsável pelo aplicativo.':response.error}catch{}throw Error(message)}
   if(result?.error)throw Error(result.error);return result;
 }
-async function hpeAccountsRefresh(){ if(window.hpeNetworkAllowed?.()===false)return;
-  hpeDirectoryLoaded=false;hpeDirectory=[];hpeRequests=[];
+async function hpeAccountsRefresh(){
   if(!hpeProfile||hpeProfile.role==='aluno')return;
+  if(window.hpeNetworkAllowed?.()===false){hpeDirectoryError='Conecte à internet para atualizar a lista de personais.';return}
+  hpeDirectoryLoading=true;hpeDirectoryError='';hpeDirectoryWarning='';
   try{
-    const result=await hpeAccountsCall({action:'list'});hpeDirectory=result.profiles;hpeRequests=result.requests;hpeDirectoryError='';hpeDirectoryLoaded=true;
-    const {data:consultRows,error:consultError}=await hpeAuth.from('hpe_consultation_students').select('student_id').eq('personal_id',hpeProfile.id);if(consultError)throw consultError;
-    window.hpeConsultationAccountIds=new Set((consultRows||[]).map(row=>row.student_id));
+    const result=await hpeAccountsCall({action:'list'});
+    if(!Array.isArray(result?.profiles)||!Array.isArray(result?.requests))throw Error('O servidor retornou uma lista de contas inválida. Atualize novamente.');
+    hpeDirectory=result.profiles;hpeRequests=result.requests;hpeDirectoryLoaded=true;
+    window.hpeConsultationAccountIds=new Set();
+    if(hpeProfile.role==='personal'){
+      const {data:consultRows,error:consultError}=await hpeAuth.from('hpe_consultation_students').select('student_id').eq('personal_id',hpeProfile.id);
+      if(consultError)hpeDirectoryWarning='A lista foi atualizada, mas os vínculos de consultoria não puderam ser atualizados.';
+      else window.hpeConsultationAccountIds=new Set((consultRows||[]).map(row=>row.student_id));
+    }
     data.personalAccounts=hpeDirectory.filter(p=>p.role==='personal').map(p=>({id:p.id,name:p.name,email:p.email||'',limit:p.license_limit,lifetime:p.lifetime}));
     for(const p of hpeDirectory.filter(p=>p.role==='aluno')){
       if(window.hpeConsultationAccountIds.has(p.id))continue;
@@ -22,9 +29,10 @@ async function hpeAccountsRefresh(){ if(window.hpeNetworkAllowed?.()===false)ret
       let a=data.studentAccounts.find(a=>a.student===s.id);if(!a){a={student:s.id};data.studentAccounts.push(a)}a.accessCode=p.access_code||'';delete a.email;
     }
     data.licenseRequests=hpeRequests.map(r=>({id:r.id,personalId:r.personal_id,status:r.status,quantity:20,created:r.created_at}));save();
-  }catch(error){hpeDirectoryError=error.message}
+  }catch(error){hpeDirectoryError=error?.message||'Não foi possível carregar as contas.'}
+  finally{hpeDirectoryLoading=false}
 }
-window.hpeReloadAccounts=async()=>{await hpeAccountsRefresh();render();toast(hpeDirectoryLoaded?'Contas atualizadas do Supabase.':hpeDirectoryError)};
+window.hpeReloadAccounts=async()=>{if(hpeDirectoryLoading)return;hpeDirectoryError='';hpeDirectoryLoading=true;render();await hpeAccountsRefresh();render();toast(hpeDirectoryLoaded?'Contas atualizadas do Supabase.':hpeDirectoryError)};
 window.hpeEditStudentProfile=id=>{
   if(hpeProfile?.role!=='personal')return;
   const s=data.students.find(item=>item.id===Number(id));if(!s||!ownsStudent(s.id))return toast('Aluno não encontrado na sua lista.');
@@ -112,7 +120,40 @@ async function hpeAccountMutation(body){try{await hpeAccountsCall(body);await hp
 window.setLifetime=(id,enabled)=>hpeAccountMutation({action:'lifetime',target:id,enabled});
 window.requestLicenses=()=>hpeAccountMutation({action:'request'});
 window.resolveLicenses=(id,approve)=>hpeAccountMutation({action:approve?'approve':'reject',target:id});
-adminScreen=function(){return heading('ADMINISTRAÇÃO · SUPABASE','Professores e licenças.','Contas, limites e uso vitalício controlados no servidor.',`<button onclick="hpeReloadAccounts()">Atualizar contas</button><button class="primary" onclick="addPersonal()">+ Cadastrar personal</button>`)+`${hpeDirectoryError?`<section class="card"><h2>Ativação do cadastro pendente</h2><p>${esc(hpeDirectoryError)}</p></section>`:''}<div class="grid">${hpeDirectory.filter(p=>p.role==='personal').map(p=>`<section class="card"><h2>${esc(p.name)}</h2><p>${esc(p.email||'')}</p><span class="tag">${hpeDirectory.filter(s=>s.role==='aluno'&&s.personal_id===p.id).length} / ${p.lifetime?'∞':p.license_limit} LICENÇAS</span><p>${p.lifetime?'Uso vitalício · alunos ilimitados':'Limite de alunos ativo'}</p><div class="personal-admin-actions"><button onclick="hpeEditPersonalProfile('${p.id}')">Editar perfil</button><button onclick="hpeConfirmPersonalReset('${p.id}')">Gerar nova senha</button></div><button aria-pressed="${p.lifetime}" onclick="setLifetime('${p.id}',${!p.lifetime})">${p.lifetime?'Desativar':'Ativar'} uso vitalício</button></section>`).join('')||'<section class="card"><p>Nenhum personal carregado do Supabase.</p></section>'}</div><section class="card"><h2>Solicitações de +20 licenças</h2>${hpeRequests.map(r=>`<div class="listrow"><div><b>${esc(hpeDirectory.find(p=>p.id===r.personal_id)?.name||'Personal')}</b><p>${esc(r.status)}</p></div>${r.status==='pendente'?`<button onclick="resolveLicenses('${r.id}',true)">Aprovar +20</button><button onclick="resolveLicenses('${r.id}',false)">Recusar</button>`:''}</div>`).join('')||'<p>Nenhuma solicitação carregada.</p>'}</section><p class="note">Contas e licenças no servidor. Confira o indicador para sincronizar os registros entre aparelhos da mesma conta. Treinos, resultados e conversa são compartilhados com os alunos vinculados.</p>`};
+window.hpeFilterAdminPersonals=value=>{
+ const term=String(value||'').trim().toLocaleLowerCase('pt-BR');
+ document.querySelectorAll('.hpe-admin-personal-card').forEach(card=>{card.hidden=!card.dataset.search.includes(term)});
+};
+window.hpeSavePersonalLicenseLimit=async id=>{
+ if(hpeProfile?.role!=='adm')return;
+ const input=$(`#hpe-license-limit-${id}`),status=$(`#hpe-license-status-${id}`),button=$(`#hpe-license-save-${id}`);
+ if(!input||!status||!button)return;
+ const limit=Number(input.value);
+ if(!Number.isSafeInteger(limit)||limit<0||limit>100000){status.textContent='Informe um número inteiro entre 0 e 100.000.';return}
+ button.disabled=true;status.textContent='Salvando limite…';
+ try{
+  await hpeAccountsCall({action:'set_license_limit',target:id,limit});
+  await hpeAccountsRefresh();render();toast('Limite de licenças atualizado.');
+ }catch(error){status.textContent=error?.message||'Não foi possível salvar o limite.'}
+ finally{const current=$(`#hpe-license-save-${id}`);if(current)current.disabled=false}
+};
+adminScreen=function(){
+ const personals=hpeDirectory.filter(p=>p.role==='personal');
+ const students=hpeDirectory.filter(p=>p.role==='aluno');
+ const pending=hpeRequests.filter(r=>r.status==='pendente').length;
+ const available=personals.reduce((sum,p)=>sum+(p.lifetime?0:Math.max(0,(Number(p.license_limit)||0)-students.filter(s=>s.personal_id===p.id).length)),0);
+ const cards=personals.map(p=>{
+  const used=students.filter(s=>s.personal_id===p.id).length;
+  const limit=Number.isSafeInteger(Number(p.license_limit))&&Number(p.license_limit)>=0?Number(p.license_limit):20;
+  const search=esc(`${p.name||''} ${p.email||''}`.toLocaleLowerCase('pt-BR'));
+  return `<section class="card hpe-admin-personal-card" data-search="${search}"><div class="hpe-admin-personal-heading"><div class="hpe-admin-avatar" aria-hidden="true">${esc(String(p.name||'P').split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase())}</div><div><h2>${esc(p.name||'Personal sem nome')}</h2><p>${esc(p.email||'E-mail não informado')}</p></div></div><div class="hpe-admin-license-usage"><span>Alunos cadastrados</span><strong>${used} <small>/ ${p.lifetime?'∞':limit}</small></strong><span>${p.lifetime?'Uso vitalício ativo':`${Math.max(0,limit-used)} licença(s) disponível(is)`}</span></div><form class="hpe-admin-license-form" onsubmit="event.preventDefault();hpeSavePersonalLicenseLimit('${esc(p.id)}')"><label for="hpe-license-limit-${esc(p.id)}">Limite de licenças</label><div class="hpe-admin-license-controls"><input id="hpe-license-limit-${esc(p.id)}" type="number" min="0" max="100000" step="1" inputmode="numeric" value="${limit}" required aria-label="Limite de licenças de ${esc(p.name||'personal')}"><button class="primary" id="hpe-license-save-${esc(p.id)}">Salvar limite</button></div><small>Se o limite ficar abaixo do uso atual, os alunos existentes continuam ativos; novos cadastros ficam bloqueados até haver vagas.</small><p id="hpe-license-status-${esc(p.id)}" class="hpe-admin-license-status" role="status" aria-live="polite"></p></form><div class="personal-admin-actions"><button onclick="hpeEditPersonalProfile('${esc(p.id)}')">Editar perfil</button><button onclick="hpeConfirmPersonalReset('${esc(p.id)}')">Gerar nova senha</button></div><button class="hpe-admin-lifetime-button" aria-pressed="${Boolean(p.lifetime)}" onclick="setLifetime('${esc(p.id)}',${!p.lifetime})">${p.lifetime?'Desativar':'Ativar'} uso vitalício</button></section>`;
+ }).join('');
+ const cardsContent=cards||`<section class="card hpe-admin-empty"><h2>${hpeDirectoryLoading?'Carregando personais…':hpeDirectoryError?'Não foi possível atualizar a lista':'Nenhum personal cadastrado'}</h2><p>${hpeDirectoryLoading?'Buscando as contas registradas no Supabase.':hpeDirectoryError?'Toque em “Atualizar personais” para tentar novamente.':'Quando uma conta de personal for criada, ela aparecerá nesta área.'}</p></section>`;
+ const errorBanner=hpeDirectoryError?`<section class="card hpe-admin-alert" role="status"><b>Lista possivelmente desatualizada</b><p>${esc(hpeDirectoryError)}</p></section>`:'';
+ const warningBanner=hpeDirectoryWarning?`<p class="note">${esc(hpeDirectoryWarning)}</p>`:'';
+ const requestRows=hpeRequests.map(r=>`<div class="hpe-admin-request-row"><div><b>${esc(personals.find(p=>p.id===r.personal_id)?.name||'Personal')}</b><p>${esc(r.status)} · ${r.created_at?new Date(r.created_at).toLocaleDateString('pt-BR'):''}</p></div><span class="tag">${esc(String(r.status||'').toUpperCase())}</span>${r.status==='pendente'?`<button class="primary" onclick="resolveLicenses('${esc(r.id)}',true)">Aprovar +20</button><button onclick="resolveLicenses('${esc(r.id)}',false)">Recusar</button>`:''}</div>`).join('')||'<p>Nenhuma solicitação de licença pendente.</p>';
+ return heading('ADMINISTRAÇÃO · HPE','Personais e licenças.','Consulte as contas cadastradas e defina o limite individual de alunos.',`<button onclick="hpeReloadAccounts()" ${hpeDirectoryLoading?'disabled':''}>${hpeDirectoryLoading?'Atualizando…':'↻ Atualizar personais'}</button><button class="primary" onclick="addPersonal()">+ Cadastrar personal</button>`)+`<div class="hpe-admin-summary"><section><span>Personais cadastrados</span><strong>${personals.length}</strong></section><section><span>Alunos vinculados</span><strong>${students.length}</strong></section><section><span>Licenças disponíveis</span><strong>${available}</strong></section><section><span>Solicitações pendentes</span><strong>${pending}</strong></section></div>${errorBanner}${warningBanner}<section class="hpe-admin-directory"><div class="hpe-admin-directory-head"><div><h2>Personais cadastrados</h2><p>${personals.length} conta(s) carregada(s) do servidor.</p></div><label class="hpe-admin-search"><span>Buscar</span><input type="search" placeholder="Nome ou e-mail" oninput="hpeFilterAdminPersonals(this.value)" aria-label="Buscar personal por nome ou e-mail"></label></div><div class="hpe-admin-personal-grid">${cardsContent}</div></section><section class="card hpe-admin-requests"><div class="hpe-admin-directory-head"><div><h2>Solicitações de licenças</h2><p>Autorize lotes adicionais de 20 licenças.</p></div><span class="tag">${pending} PENDENTE(S)</span></div>${requestRows}</section><p class="note">Os limites são aplicados no servidor. Alterar o limite não remove alunos já cadastrados.</p>`;
+};
 const accountRender=render;render=function(){accountRender();if(hpeProfile?.role==='personal')$('#content').insertAdjacentHTML('afterbegin',`<section class="card"><div class="row"><b>Contas e licenças · Supabase</b><button onclick="hpeReloadAccounts()">Atualizar contas</button></div><p>${esc(hpeDirectoryError||'Cadastre o aluno pelo nome. O sistema gera o código de acesso e a senha temporária.')}</p></section>`)};
 
 
