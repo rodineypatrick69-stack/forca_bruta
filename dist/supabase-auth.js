@@ -4,7 +4,7 @@ const hpeAuth=window.supabase?.createClient('https://jzvzlcdaywqjhserndyf.supaba
 let hpeProfile=null,hpeRecovery=false,hpeAuthVersion=0,hpePasswordSetupActive=false;
 const localLogin=showLogin,localEnter=enterApp;
 function hpeError(message){const error=$('#loginError');if(error){error.hidden=false;error.textContent=message}}
-function hpeSignedOut(){hpeProfile=null;hpePasswordSetupActive=false;window.hpeDataKey='hpe-pending-v1';sessionStorage.removeItem('forja-session');sessionStorage.removeItem('forja-identity');done.clear();$('#modal').close();showLogin(loginRole)}
+function hpeSignedOut(){hpeProfile=null;hpePasswordSetupActive=false;window.hpeDataKey='hpe-pending-v1';sessionStorage.removeItem('forja-session');sessionStorage.removeItem('forja-identity');done.clear();$('#modal').close();const picker=$('#role');if(picker){picker.hidden=false;picker.disabled=false}showLogin(loginRole)}
 showLogin=function(selected=loginRole){
   localLogin(selected);
   const loginInput=$('#loginForm input[name=email]');
