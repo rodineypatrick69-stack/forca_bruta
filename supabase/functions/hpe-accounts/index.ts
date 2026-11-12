@@ -112,6 +112,15 @@ Deno.serve(async req=>{
       const {data:requests,error:requestsError}=await requestsQuery;if(requestsError)throw requestsError;
       return reply(req,200,{profiles:profiles.map(p=>p.role==='aluno'?{...p,email:null}:p),requests});
     }
+    if(body.action==='set_license_limit'){
+      if(caller.role!=='adm')return reply(req,403,{error:'Apenas o administrador pode alterar limites de licença.'});
+      if(!uuid(body.target))return reply(req,400,{error:'Personal inválido.'});
+      if(!Number.isSafeInteger(body.limit)||body.limit<0||body.limit>100000)return reply(req,400,{error:'Informe um limite inteiro entre 0 e 100.000.'});
+      const {data:personal,error}=await admin.from('hpe_profiles').update({license_limit:body.limit}).eq('id',body.target).eq('role','personal').select('id,license_limit').maybeSingle();
+      if(error)return reply(req,409,{error:'Não foi possível salvar o limite de licenças. Tente novamente.'});
+      if(!personal)return reply(req,404,{error:'Personal não encontrado. Atualize a lista.'});
+      return reply(req,200,{ok:true,personal});
+    }
     if(['lifetime','request','approve','reject'].includes(body.action)){
       if(body.action!=='request'&&!uuid(body.target))return reply(req,400,{error:'Identificador inválido.'});
       if(body.action==='lifetime'&&typeof body.enabled!=='boolean')return reply(req,400,{error:'Opção inválida.'});
