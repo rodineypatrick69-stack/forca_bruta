@@ -1,12 +1,12 @@
 # HPE Força Bruta
 
-Aplicativo web de musculação para personal trainers e alunos. Esta fonte está sincronizada com a versão 67 do app.
+Aplicativo web de musculação para personal trainers e alunos. Esta fonte está sincronizada com a versão 68 do app.
 
 ## Recursos
 
 - Treino personalizado para o aluno e acompanhamento individual da consultoria online.
 - Questionário inicial, check-ins semanais, evolução por semana e mês, e relatórios em PDF.
-- Carteira do personal com pendências, treino da semana, peso mais recente e mensagens novas.
+- Carteira do personal com pendências, treinos da semana, peso mais recente e mensagens novas.
 - Fotos privadas da consultoria com consentimento e acesso limitado ao aluno e ao personal responsável.
 - Layout responsivo e instalação pela tela inicial do celular.
 

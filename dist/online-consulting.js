@@ -719,7 +719,8 @@ render=function(){
  hpeConsultBaseRender();
  if(document.body.classList.contains('signed-out'))return;
  const nav=$('#nav');
- if(hpeProfile?.consultation_only){nav.innerHTML='<button data-consult-nav class="active" aria-current="page" onclick="go(\'consultoria\')">◉ &nbsp; Minha Consultoria</button>';const seq=++hpeConsultRenderSeq;hpeConsultRenderStudent(seq);return}
+ if(hpeProfile?.consultation_only){const picker=$('#role');if(picker){picker.hidden=true;picker.disabled=true}nav.innerHTML='<button data-consult-nav class="active" aria-current="page" onclick="go(\'consultoria\')">◉ &nbsp; Minha Consultoria</button>';const seq=++hpeConsultRenderSeq;hpeConsultRenderStudent(seq);return}
+ const picker=$('#role');if(picker){picker.hidden=false;picker.disabled=false}
  if(role==='personal'&&!nav.querySelector('[data-consult-nav]'))nav.insertAdjacentHTML('beforeend','<button data-consult-nav class="'+(page==='consultoria'?'active':'')+'" onclick="go(\'consultoria\')">◉ &nbsp; Consultoria Online</button>');
  if(role==='aluno'&&!nav.querySelector('[data-consult-nav]'))nav.insertAdjacentHTML('beforeend','<button data-consult-nav class="'+(page==='consultoria'?'active':'')+'" onclick="go(\'consultoria\')">◉ &nbsp; Minha Consultoria</button>');
  if(page!=='consultoria')return;
