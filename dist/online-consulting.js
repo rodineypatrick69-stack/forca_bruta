@@ -516,15 +516,24 @@ window.hpeConsultBuilderAddExercise=(muscle,index)=>{
  const name=muscleLibrary[muscle]?.exercises[index];if(!name||!hpeConsultBuilderWorkoutId)return;
  hpeConsultEditExercise(hpeConsultBuilderWorkoutId,null,{name,muscle,sets:3,reps:'12',weight:0,rest:60,notes:'',gif:'',video:''});
 };
+function hpeConsultBindExerciseDraft(form,key){
+ const status=form.querySelector('#consultExerciseDraftStatus');let timer=null;
+ try{const draft=JSON.parse(sessionStorage.getItem(key)||'null');if(draft&&typeof draft==='object'){for(const [name,value] of Object.entries(draft)){const field=form.elements.namedItem(name);if(field&&typeof value==='string')field.value=value}if(status)status.textContent='Rascunho recuperado neste dispositivo.'}}catch{}
+ const saveDraft=()=>{try{const draft=Object.fromEntries(new FormData(form).entries());sessionStorage.setItem(key,JSON.stringify(draft));if(status)status.textContent='Rascunho salvo neste dispositivo.'}catch{if(status)status.textContent='Não foi possível salvar o rascunho neste dispositivo.'}};
+ const queueSave=()=>{clearTimeout(timer);timer=setTimeout(saveDraft,350)};
+ form.addEventListener('input',queueSave);form.addEventListener('change',queueSave);
+}
 window.hpeConsultEditExercise=(workoutId,exerciseId,preset=null)=>{
  if(hpeProfile?.role!=='personal')return;
  const workout=hpeConsultWorkout(workoutId);if(!workout)return;
  const exercise=exerciseId?(workout.exercises||[]).find(item=>item.id===exerciseId):(preset||{name:'',sets:3,reps:'12',weight:0,rest:60,notes:'',gif:'',video:''});if(!exercise)return;
  const weight=exercise.weight!==undefined?Number(exercise.weight):(Number.parseFloat(String(exercise.load||'').replace(',','.'))||0);
- modal('<h2>'+(exerciseId?'Editar exercício':'Adicionar exercício')+' · '+esc(workout.title)+'</h2><form id="hpeConsultExerciseForm"><label>Exercício<input name="name" maxlength="100" value="'+esc(exercise.name||'')+'" required></label><div class="inline"><label>Séries<input name="sets" type="number" min="1" max="20" value="'+esc(exercise.sets??3)+'" required></label><label>Repetições ou tempo<input name="reps" maxlength="150" value="'+esc(exercise.reps||'12')+'" required></label></div><div class="inline"><label>Carga (kg)<input name="weight" type="number" min="0" max="1000" step="0.5" value="'+esc(weight)+'" required></label><label>Descanso (s)<input name="rest" type="number" min="0" max="600" value="'+esc(exercise.rest??60)+'" required></label></div><label>Orientação e método<textarea name="notes" maxlength="2000" rows="3">'+esc(exercise.notes||'')+'</textarea></label><label>URL de demonstração GIF (HTTPS, opcional)<input name="gif" type="url" value="'+esc(exercise.gif||'')+'" placeholder="https://…/exercicio.gif"></label><label>Vídeo de demonstração (HTTPS, opcional)<input name="video" type="url" value="'+esc(exercise.video||'')+'" placeholder="https://…/exercicio.mp4"></label><p id="consultExerciseError" role="alert"></p><button class="primary">Salvar exercício</button></form>');
- $('#hpeConsultExerciseForm').onsubmit=event=>hpeConsultSaveExercise(event,workoutId,exerciseId,exercise);
+ modal('<h2>'+(exerciseId?'Editar exercício':'Adicionar exercício')+' · '+esc(workout.title)+'</h2><form id="hpeConsultExerciseForm"><label>Exercício<input name="name" maxlength="100" value="'+esc(exercise.name||'')+'" required></label><div class="inline"><label>Séries<input name="sets" type="number" min="1" max="20" value="'+esc(exercise.sets??3)+'" required></label><label>Repetições ou tempo<input name="reps" maxlength="150" value="'+esc(exercise.reps||'12')+'" required></label></div><div class="inline"><label>Carga (kg)<input name="weight" type="number" min="0" max="1000" step="0.5" value="'+esc(weight)+'" required></label><label>Descanso (s)<input name="rest" type="number" min="0" max="600" value="'+esc(exercise.rest??60)+'" required></label></div><label>Orientação e método<textarea name="notes" maxlength="2000" rows="3">'+esc(exercise.notes||'')+'</textarea></label><label>URL de demonstração GIF (HTTPS, opcional)<input name="gif" type="url" value="'+esc(exercise.gif||'')+'" placeholder="https://…/exercicio.gif"></label><label>Vídeo de demonstração (HTTPS, opcional)<input name="video" type="url" value="'+esc(exercise.video||'')+'" placeholder="https://…/exercicio.mp4"></label><p id="consultExerciseDraftStatus" class="note" role="status"></p><p id="consultExerciseError" role="alert"></p><button class="primary">Salvar exercício</button></form>');
+ const draftId=exerciseId||('novo-'+String(exercise.name||'exercicio').toLowerCase()),draftKey=['hpe-consult-exercise',hpeProfile.id,hpeConsultRecord()?.id,workoutId,draftId].join(':');
+ hpeConsultBindExerciseDraft($('#hpeConsultExerciseForm'),draftKey);
+ $('#hpeConsultExerciseForm').onsubmit=event=>hpeConsultSaveExercise(event,workoutId,exerciseId,exercise,draftKey);
 };
-window.hpeConsultSaveExercise=async(event,workoutId,exerciseId,previous={})=>{
+window.hpeConsultSaveExercise=async(event,workoutId,exerciseId,previous={},draftKey='')=>{
  event.preventDefault();const f=new FormData(event.currentTarget),workout=hpeConsultWorkout(workoutId);if(!workout||hpeProfile?.role!=='personal')return;
  const value={id:exerciseId||crypto.randomUUID(),name:String(f.get('name')||'').trim(),sets:Number(f.get('sets')),reps:String(f.get('reps')||'').trim(),weight:Number(f.get('weight')),rest:Number(f.get('rest')),notes:String(f.get('notes')||'').trim().slice(0,2000),gif:String(f.get('gif')||'').trim(),video:String(f.get('video')||'').trim(),muscle:previous?.muscle||''};
  const status=document.getElementById('consultExerciseError'),button=event.currentTarget.querySelector('button');
@@ -533,7 +542,7 @@ window.hpeConsultSaveExercise=async(event,workoutId,exerciseId,previous={})=>{
  workout.exercises=workout.exercises||[];
  if(exerciseId){const index=workout.exercises.findIndex(item=>item.id===exerciseId);if(index>=0)workout.exercises[index]=value}else workout.exercises.push(value);
  button.disabled=true;
- try{await hpeConsultSaveProgram(hpeConsultProgram());if(hpeConsultBuilderWorkoutId)hpeConsultBuilderTab='lista';$('#modal').close();render();toast('Exercício salvo na ficha da consultoria.')}catch(error){button.disabled=false;if(status)status.textContent=error?.message||'Não foi possível salvar o exercício.'}
+ try{await hpeConsultSaveProgram(hpeConsultProgram());if(draftKey)sessionStorage.removeItem(draftKey);if(hpeConsultBuilderWorkoutId)hpeConsultBuilderTab='lista';$('#modal').close();render();toast('Exercício salvo na ficha da consultoria.')}catch(error){button.disabled=false;if(status)status.textContent=error?.message||'Não foi possível salvar o exercício.'}
 };
 window.hpeConsultRemoveExercise=async(workoutId,exerciseId)=>{
  if(hpeProfile?.role!=='personal')return;const workout=hpeConsultWorkout(workoutId);if(!workout)return;

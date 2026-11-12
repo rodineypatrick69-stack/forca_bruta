@@ -1,13 +1,14 @@
 # HPE Força Bruta
 
-Aplicativo web de musculação para personal trainers e alunos. Esta fonte está sincronizada com a versão 68 do app.
+Aplicativo web de musculação para personal trainers e alunos. Esta fonte está sincronizada com a versão 69 do app.
 
 ## Recursos
 
-- Treino personalizado para o aluno e acompanhamento individual da consultoria online.
-- Questionário inicial, check-ins semanais, evolução por semana e mês, e relatórios em PDF.
+- Treino personalizado e acompanhamento individual da consultoria online.
+- Questionário inicial, check-ins, evolução semanal e mensal, e relatórios em PDF.
 - Carteira do personal com pendências, treinos da semana, peso mais recente e mensagens novas.
-- Fotos privadas da consultoria com consentimento e acesso limitado ao aluno e ao personal responsável.
+- Fotos privadas com consentimento e acesso restrito à consultoria responsável.
+- Rascunho automático dos exercícios de treino neste dispositivo.
 - Layout responsivo e instalação pela tela inicial do celular.
 
 ## Executar localmente
@@ -28,4 +29,4 @@ Abra http://localhost:8000. O login, o armazenamento e as permissões reais depe
 
 ## Supabase
 
-A função `hpe-accounts` faz o cadastro e o gerenciamento seguro de contas. A chave de serviço fica somente nos secrets da Edge Function; nunca a coloque no frontend. As tabelas e arquivos da consultoria usam RLS e o bucket privado `hpe-consultation-media`.
+A função `hpe-accounts` faz o cadastro e o gerenciamento seguro de contas. A chave de serviço fica somente nos secrets da Edge Function; nunca a coloque no frontend. As tabelas e fotos da consultoria usam RLS e o bucket privado `hpe-consultation-media`.
