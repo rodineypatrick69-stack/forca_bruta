@@ -37,3 +37,149 @@
 .consult-stats{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media(max-width:850px){.consult-layout{grid-template-columns:1fr}.consult-intro{align-items:flex-start;flex-direction:column}.consult-roster-item{flex-wrap:wrap}.consult-roster-item>div{flex:1 1 60%}}
 @media(max-width:650px){.consult-stats{grid-template-columns:1fr}.consult-facts{grid-template-columns:1fr 1fr}.consult-days{grid-template-columns:1fr 1fr}.consult-history-item,.consult-roster-item{align-items:flex-start;flex-direction:column}.consult-roster-item button{width:100%}.consult-intro{padding:18px}}
+.consult-module-tabs{display:flex;gap:8px;overflow-x:auto;padding:5px 2px 12px;margin:14px 0 18px;border-bottom:1px solid var(--line);scrollbar-width:thin}
+.consult-module-tabs button,.consult-period-switch button{flex:0 0 auto;border-radius:999px;padding:10px 15px;background:#202020;color:#d7d8d4}
+.consult-module-tabs button.active,.consult-period-switch button.active{background:var(--green);color:#121410;border-color:var(--green);font-weight:700}
+.consult-roster-grid,.consult-workouts,.consult-report-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:18px}
+.consult-roster-card,.consult-workout-card,.consult-report-grid article{min-width:0;padding:18px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(145deg,#232323,#191919)}
+.consult-roster-card h3,.consult-workout-card h3{margin:12px 0 6px}
+.consult-roster-card p,.consult-workout-card p{color:var(--muted);font-size:13px}
+.consult-roster-summary{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 4px}
+.consult-roster-summary span{padding:8px 11px;border:1px solid var(--line);border-radius:999px;background:#151515;color:var(--muted);font-size:12px}
+.consult-roster-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:14px 0}
+.consult-roster-metrics>div{min-width:0;padding:10px;border:1px solid var(--line);border-radius:10px;background:#151515}
+.consult-roster-metrics small,.consult-roster-metrics b{display:block;overflow-wrap:anywhere}
+.consult-roster-metrics small{margin-bottom:5px;color:var(--muted);font-size:11px}
+.consult-roster-metrics b{font-size:13px}
+.consult-roster-metrics b.pending{color:#f2bd62}
+.consult-roster-metrics b.complete{color:var(--green)}
+.consult-roster-actions,.consult-shortcuts,.consult-chat-photo{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}
+.consult-roster-actions button{flex:1 1 auto}
+.consult-panel{margin:0 0 18px}
+.consult-welcome{margin:16px 0 20px;background:radial-gradient(ellipse at top right,#3c2417,#1b1b1b 65%);border-color:#604128}
+.consult-welcome h2{font-size:clamp(25px,4vw,38px)}
+.consult-stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+.consult-stat strong{font-size:clamp(20px,3vw,30px);line-height:1.2;overflow-wrap:anywhere}
+.consult-stat small{margin-top:7px}
+.consult-fieldset{margin:14px 0 18px}
+.consult-radio{display:flex;gap:14px;flex-wrap:wrap;margin:9px 0}
+.consult-radio label{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:9px;padding:10px 14px;background:#202020}
+.consult-radio input{accent-color:var(--green)}
+.consult-program-title{display:block;max-width:460px;margin:14px 0}
+.consult-workout-card .row{align-items:flex-start}
+.consult-exercise-list{display:grid;gap:3px;margin:14px 0}
+.consult-exercise-item{display:grid;grid-template-columns:35px minmax(0,1fr) auto auto;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}
+.consult-exercise-item .num{color:var(--green);font-weight:700}
+.consult-exercise-item p{margin:4px 0}
+.consult-exercise-item small{display:block;color:var(--muted);white-space:pre-wrap}
+.consult-workout-card>.primary{margin-top:14px}
+.consult-chart-wrap{padding:14px 0 20px}
+.consult-weight-chart{display:grid;grid-template-columns:repeat(8,minmax(40px,1fr));gap:8px;align-items:end;min-height:190px;margin:18px 0 10px;overflow-x:auto}
+.consult-weight-chart.monthly{grid-template-columns:repeat(6,minmax(48px,1fr))}
+.consult-weight-column{display:grid;grid-template-rows:25px 1fr 24px;align-items:end;gap:7px;text-align:center;min-width:38px}
+.consult-weight-column small{font-size:10px;color:var(--muted)}
+.consult-weight-value{font-size:10px;color:#e8e9e5;white-space:nowrap}
+.consult-weight-track{height:130px;display:flex;align-items:flex-end;justify-content:center;border-bottom:1px solid #555}
+.consult-weight-track span{display:block;width:min(48px,70%);min-height:3px;border-radius:7px 7px 0 0;background:linear-gradient(180deg,var(--green),#b45d1d)}
+.consult-period-switch{display:flex;gap:6px;padding:4px;border:1px solid var(--line);border-radius:999px}
+.consult-period-switch button{padding:8px 12px}
+.consult-weight-form{margin:20px 0;padding:18px;border:1px solid var(--line);border-radius:12px;background:#1d1d1d}
+.consult-table-wrap{overflow-x:auto}
+.consult-table{width:100%;border-collapse:collapse;margin:10px 0}
+.consult-table th,.consult-table td{text-align:left;padding:11px 9px;border-bottom:1px solid var(--line);font-size:13px}
+.consult-photo-angles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:20px 0}
+.consult-photo-angle{min-width:0;padding:10px;border:1px solid var(--line);border-radius:11px;background:#191919}
+.consult-photo-angle>img{display:block;width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:8px;margin:10px 0}
+.consult-photo-angle>small{color:var(--muted)}
+.consult-photo-placeholder{display:grid;place-items:center;aspect-ratio:3/4;margin:10px 0;border:1px dashed #484848;border-radius:8px;color:var(--muted);font-size:12px;text-align:center}
+.consult-photo-gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin:15px 0}
+.consult-photo-card{min-width:0;overflow:hidden;border:1px solid var(--line);border-radius:12px;background:#1d1d1d}
+.consult-photo-card img{width:100%;aspect-ratio:3/4;object-fit:cover;display:block}
+.consult-photo-card>div{padding:12px}
+.consult-photo-card small{display:block;color:var(--muted);margin-top:5px}
+.consult-photo-card p{white-space:pre-wrap}
+.consult-photo-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px;border:1px solid var(--line);border-radius:12px;background:#1d1d1d}
+.consult-photo-form label:nth-child(3){grid-column:1/-1}
+.consult-photo-form button,.consult-photo-form .note{grid-column:1/-1}
+.consult-chat{display:flex;flex-direction:column;gap:11px;max-height:560px;overflow:auto;padding:14px 4px;margin:12px 0;border:1px solid var(--line);border-radius:12px;background:#151515}
+.consult-chat-message{max-width:min(82%,620px);padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#242424;align-self:flex-start;overflow-wrap:anywhere}
+.consult-chat-message.mine{align-self:flex-end;border-color:#5b452f;background:#33271d}
+.consult-chat-message small{color:var(--muted);font-size:10px}
+.consult-chat-message p{white-space:pre-wrap;margin:7px 0}
+.consult-chat-message img{display:block;max-width:100%;max-height:420px;border-radius:8px;margin-top:8px}
+.consult-chat-form{display:grid;gap:10px}
+.consult-chat-photo{margin:0;align-items:end}
+.consult-chat-photo label{flex:1 1 180px}
+.consult-history-item{align-items:flex-start}
+.consult-history-item p{white-space:pre-wrap}
+.consult-report-grid article{display:grid;align-content:start;gap:10px}
+.consult-report-grid article h3,.consult-report-grid article p{margin:0}
+.report-icon{display:grid;place-items:center;width:46px;height:46px;border-radius:10px;background:#392719;color:#ff9a50;font-size:12px;font-weight:800}
+.consult-loading{margin-top:18px;color:var(--muted)}
+.consult-empty{padding:22px;border:1px dashed #494949;border-radius:12px;background:#1a1a1a}
+.consult-empty h3{margin-top:0}
+.consult-empty p{max-width:700px;color:var(--muted)}
+.consult-empty button{margin-top:8px}
+.consult-status{max-width:100%;text-align:center}
+@media(max-width:850px){.consult-roster-grid,.consult-workouts,.consult-report-grid{grid-template-columns:1fr}.consult-photo-angles{grid-template-columns:repeat(2,minmax(0,1fr))}.consult-photo-gallery{grid-template-columns:repeat(2,minmax(0,1fr))}.consult-exercise-item{grid-template-columns:30px minmax(0,1fr) auto}.consult-exercise-item button:last-child{grid-column:3}.consult-stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:600px){.consult-stats{grid-template-columns:1fr}.consult-module-tabs button{padding:9px 12px;font-size:12px}.consult-period-switch{width:100%;justify-content:center}.consult-period-switch button{flex:1}.consult-photo-form{grid-template-columns:1fr}.consult-photo-form label:nth-child(3),.consult-photo-form button,.consult-photo-form .note{grid-column:auto}.consult-photo-gallery{grid-template-columns:1fr 1fr}.consult-exercise-item{grid-template-columns:28px minmax(0,1fr)}.consult-exercise-item button{grid-column:2}.consult-roster-actions{display:grid}.consult-roster-metrics{grid-template-columns:1fr 1fr}.consult-roster-summary{display:grid;grid-template-columns:1fr}.consult-chat-message{max-width:94%}.consult-welcome{padding:18px}.consult-table th,.consult-table td{padding:9px 6px;font-size:12px}}
+.consult-builder-picker{margin:14px 0 0}
+.consult-builder-muscle-chips{max-height:180px;overflow:auto}
+.consult-builder-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0 18px}
+.consult-builder-exercises .exercise{align-items:center}
+.consult-builder-choice{display:flex;align-items:center;justify-content:center;gap:7px;min-width:112px;padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:#1d1d1d;color:var(--text);white-space:nowrap;cursor:pointer}
+.consult-builder-choice.selected{border-color:#ff7900;background:#ff7900;color:#171717;font-weight:700}
+.consult-builder-choice input{accent-color:var(--green)}
+.consult-builder-exercise[hidden]{display:none}
+.consult-exercise-category{color:var(--green)!important;font-size:10px!important}
+.consult-batch-toolbar{display:grid;gap:8px;margin-top:18px;padding:15px;border:1px solid var(--line);border-radius:11px;background:#1d1d1d}
+.consult-batch-toolbar>div{display:flex;flex-wrap:wrap;gap:8px}
+.consult-batch-toolbar small{color:var(--muted)}
+.consult-batch-item{margin:14px 0;padding:14px;border:1px solid var(--line);border-radius:11px}
+.consult-batch-item legend{padding:0 6px;font-weight:700}
+.consult-batch-item .hpe-motion{max-width:160px;margin:5px 0 12px}
+.consult-builder-plan{margin-top:8px}
+.consult-demo-video,.consult-demo-image{display:block;width:100%;max-height:420px;object-fit:contain;border-radius:10px;margin:12px 0}
+@media(max-width:650px){.consult-builder-filters{grid-template-columns:1fr}.consult-builder-choice{white-space:normal}.consult-batch-toolbar>div{display:grid}.consult-batch-toolbar button{width:100%}}
+.consult-builder-picker .muscle-layout{grid-template-columns:minmax(0,1.4fr) minmax(240px,.88fr);gap:32px;align-items:start}
+.consult-builder-picker .body-panel{max-width:none;padding:12px;background:#161616;border-color:#3b3b3b}
+.consult-builder-picker .body-panel>.login-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.consult-builder-picker .body-panel>.login-tabs button{height:44px;border-radius:12px}
+.consult-builder-picker .realistic-atlas{display:block;width:100%;max-width:none;height:auto;border-radius:12px;background:#fff}
+.consult-builder-picker .muscle-options{min-width:0;padding-top:0}
+.consult-builder-picker .muscle-chips{gap:8px;padding-bottom:22px;margin:0 0 24px;border-bottom:1px solid var(--line)}
+.consult-builder-picker .muscle-chips button{padding:10px 12px;border:1px solid #444;border-radius:22px;background:#252525;color:#f0f0f0;font-size:12px;line-height:1.25}
+.consult-builder-picker .muscle-chips button.primary{background:#ff7900;border-color:#ff7900;color:#151515}
+.consult-builder-picker .selected-muscle-info{padding:20px;border:1px solid #414141;border-radius:14px;background:linear-gradient(145deg,#252525,#1d1d1d)}
+.consult-builder-picker .selected-muscle-info h2{margin:12px 0;font-size:24px}
+.consult-builder-picker .selected-muscle-info p{line-height:1.65}
+.consult-builder-exercise{display:grid;grid-template-columns:32px 88px minmax(0,1fr) auto;gap:12px;align-items:center}
+.consult-builder-exercise .hpe-motion{flex:0 0 88px;width:88px;height:88px;min-height:88px}
+.consult-exercise-info{display:flex;align-items:center;gap:12px;min-width:0}
+.consult-exercise-info>.hpe-motion{flex:0 0 86px;width:86px;height:86px;min-height:86px}
+.consult-exercise-copy{min-width:0}
+.consult-exercise-item .consult-exercise-copy p{line-height:1.5}
+.consult-runner{max-width:960px;margin:18px auto}
+.consult-runner-header{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
+.consult-runner-header h2{margin:9px 0 3px}
+.consult-runner-header>strong{font-size:20px;font-variant-numeric:tabular-nums}
+.consult-runner-progress{height:8px;margin:16px 0 10px;overflow:hidden;border-radius:20px;background:#353535}
+.consult-runner-progress span{display:block;height:100%;border-radius:inherit;background:var(--green);transition:width .2s ease}
+.consult-runner-back{margin:0 0 24px;padding:7px 0;border:0;background:transparent;color:var(--muted)}
+.consult-runner-exercise{max-width:760px;margin:0 auto}
+.consult-runner-exercise>h2{margin:12px 0 4px;font-size:27px}
+.consult-runner-notes{white-space:pre-wrap}
+.consult-runner-motion{display:flex;justify-content:center;margin:18px 0}
+.consult-runner-motion .hpe-motion{flex:0 1 360px;width:min(100%,360px);height:auto;min-height:250px;aspect-ratio:1}
+.consult-runner-motion .hpe-motion img,.consult-runner-motion .hpe-motion video{width:100%;height:100%;object-fit:contain}
+.consult-runner-form{margin:18px 0;padding:18px;border:1px solid var(--line);border-radius:14px;background:#1d1d1d}
+.consult-runner-form .inline{align-items:end}
+.consult-rest-panel,.consult-runner .session-success{text-align:center;padding:28px 16px}
+.consult-rest-panel>strong{display:block;margin:14px 0;font-size:52px;font-variant-numeric:tabular-nums;color:var(--green)}
+@media(max-width:800px){.consult-builder-picker .muscle-layout{grid-template-columns:1fr}.consult-builder-picker .body-panel{max-width:460px;width:100%;margin:0 auto}.consult-builder-picker .muscle-options{display:grid;gap:16px}.consult-builder-picker .selected-muscle-info{margin-top:0}.consult-builder-exercise{grid-template-columns:28px 80px minmax(0,1fr);gap:9px}.consult-builder-exercise .hpe-motion{flex-basis:80px;width:80px;height:80px;min-height:80px}.consult-builder-exercise>.consult-builder-choice{grid-column:3}.consult-exercise-item{grid-template-columns:28px minmax(0,1fr)}.consult-exercise-info>.hpe-motion{flex-basis:64px;width:64px;height:64px;min-height:64px}.consult-exercise-item button{grid-column:2}.consult-runner-header>strong{font-size:17px}.consult-runner-motion .hpe-motion{flex-basis:280px;min-height:220px}}
+.consult-division-nav{display:grid;gap:10px;margin:18px 0 14px}
+.consult-division-nav .program-tabs{grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;margin:0}
+.consult-division-nav .program-tabs button{min-width:0;padding:11px 8px}
+.consult-division-actions{display:flex;flex-wrap:wrap;gap:9px}
+.consult-division-workouts{grid-template-columns:minmax(0,1fr)}
+@media(max-width:600px){.consult-division-nav .program-tabs{display:flex;overflow-x:auto;padding-bottom:4px}.consult-division-nav .program-tabs button{flex:0 0 72px}}

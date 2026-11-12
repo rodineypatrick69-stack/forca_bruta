@@ -1,4 +1,4 @@
-data.personalAccounts??=[{id:'personal-demo',name:'PATRICK',email:'personal@forja.demo',limit:20}];data.personalAccounts.forEach(personal=>{if(personal.name==='Rafael Alves')personal.name='PATRICK'});data.licenseRequests??=[];data.studentAccounts??=[];data.students.forEach(s=>s.personalId??='personal-demo');save();
+data.personalAccounts??=[{id:'personal-demo',name:'Rafael Alves',email:'personal@forja.demo',limit:20}];data.licenseRequests??=[];data.studentAccounts??=[];data.students.forEach(s=>s.personalId??='personal-demo');save();
 accounts.adm={email:'adm@forja.demo',name:'Administrador'};
 function personalAccount(){return data.personalAccounts.find(p=>p.id===window.activePersonalId)||data.personalAccounts[0]}
 function licenseUsage(id=window.activePersonalId){return data.students.filter(s=>s.personalId===id).length}

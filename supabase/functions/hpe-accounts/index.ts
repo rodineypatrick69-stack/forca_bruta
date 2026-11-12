@@ -1,6 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.117.3';
 
-const site='https://forja-treino-academia.younggoby6.chatgpt.site';
+const site='https://forja-treino-academia.rodineypatrick69.chatgpt.site';
 const allowedOrigins=new Set([site,'https://forcabruta.vercel.app']);
 const cors=req=>({'Access-Control-Allow-Origin':req.headers.get('origin')||site,'Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'POST, OPTIONS','Vary':'Origin'});
 const reply=(req,status,body)=>new Response(JSON.stringify(body),{status,headers:{...cors(req),'Content-Type':'application/json','Cache-Control':'no-store'}});
@@ -48,8 +48,63 @@ Deno.serve(async req=>{
       return reply(req,200,{ok:true});
     }
     if(!['adm','personal'].includes(caller.role))return reply(req,403,{error:'Seu perfil não permite gerenciar contas.'});
+    if(body.action==='create_consultation_student'){
+      if(caller.role!=='personal')return reply(req,403,{error:'Somente o personal pode cadastrar alunos da consultoria.'});
+      const name=typeof body.name==='string'?body.name.trim():'';
+      const whatsapp=typeof body.whatsapp==='string'?body.whatsapp.trim():'';
+      const goal=['Hipertrofia','Condicionamento','Força'].includes(body.goal)?body.goal:'Hipertrofia';
+      const level=['Iniciante','Intermediário','Avançado'].includes(body.level)?body.level:'Iniciante';
+      if(name.length<2||name.length>80||whatsapp.length>24||(whatsapp&&!/^\+?[0-9\s().-]{8,24}$/.test(whatsapp)))return reply(req,400,{error:'Confira o nome e o WhatsApp do aluno.'});
+      let accessCode=null;
+      for(let attempt=0;attempt<20;attempt++){
+        const candidate=randomAccessCode();
+        const {data:existing,error:codeError}=await admin.from('hpe_profiles').select('id').eq('access_code',candidate).maybeSingle();
+        if(codeError)return reply(req,503,{error:'Não foi possível gerar um código de acesso. Tente novamente.'});
+        if(!existing){accessCode=candidate;break}
+      }
+      if(!accessCode)return reply(req,503,{error:'Não foi possível gerar um código único. Tente novamente.'});
+      const email='aluno.'+crypto.randomUUID()+'@hpe.invalid',password=temporaryPassword();
+      const {data:created,error:createError}=await admin.auth.admin.createUser({email,password,email_confirm:true});
+      if(createError||!created.user)return reply(req,409,{error:'Não foi possível criar a conta do aluno. Tente novamente.'});
+      const profile={id:created.user.id,name,email,access_code:accessCode,password_setup_required:true,role:'aluno',personal_id:null,consultation_only:true,license_limit:20,lifetime:false,goal,level,whatsapp,training_days:[]};
+      const {error:profileError}=await admin.from('hpe_profiles').insert(profile);
+      if(profileError){const {error:cleanupError}=await admin.auth.admin.deleteUser(created.user.id);if(cleanupError)return reply(req,500,{error:'Cadastro incompleto. O administrador deve revisar a conta em Authentication → Users.'});return reply(req,409,{error:'O perfil do aluno não pôde ser salvo. Atualize o banco do HPE e tente novamente.'})}
+      const {data:consultation,error:consultationError}=await admin.from('hpe_consultation_students').insert({personal_id:caller.id,student_id:created.user.id,name,personal_name:caller.name||'Personal',whatsapp,goal,level}).select('*').single();
+      if(consultationError){const {error:cleanupError}=await admin.auth.admin.deleteUser(created.user.id);if(cleanupError)return reply(req,500,{error:'Cadastro incompleto. O administrador deve revisar a conta em Authentication → Users.'});return reply(req,409,{error:'Não foi possível criar o acompanhamento da consultoria.'})}
+      return reply(req,201,{profile:{id:profile.id,name,role:profile.role,personal_id:null,consultation_only:true,access_code:accessCode},consultation,access_code:accessCode,temporary_password:password});
+    }
+    if(body.action==='remove_consultation_student'){
+      if(caller.role!=='personal'||!uuid(body.target))return reply(req,403,{error:'Ação não permitida.'});
+      const {data:consultation,error:consultationError}=await admin.from('hpe_consultation_students').select('id,student_id').eq('id',body.target).eq('personal_id',caller.id).maybeSingle();
+      if(consultationError||!consultation)return reply(req,404,{error:'Aluno não encontrado na sua carteira.'});
+      const folder=caller.id+'/'+consultation.id;
+      for(;;){
+        const {data:objects,error:listError}=await admin.storage.from('hpe-consultation-media').list(folder,{limit:1000,offset:0,sortBy:{column:'name',order:'asc'}});
+        if(listError)return reply(req,503,{error:'Não foi possível remover as fotos privadas. Tente novamente.'});
+        const paths=(objects||[]).filter(object=>object.name&&object.id).map(object=>folder+'/'+object.name);
+        if(!paths.length)break;
+        for(let i=0;i<paths.length;i+=100){const {error:removeError}=await admin.storage.from('hpe-consultation-media').remove(paths.slice(i,i+100));if(removeError)return reply(req,503,{error:'Não foi possível remover as fotos privadas. Tente novamente.'})}
+        if((objects||[]).length<1000)break;
+      }
+      const {error:deleteError}=await admin.auth.admin.deleteUser(consultation.student_id,false);
+      if(deleteError)return reply(req,409,{error:'As fotos foram removidas, mas não foi possível encerrar a conta. Tente novamente.'});
+      return reply(req,200,{ok:true});
+    }
+    if(body.action==='reset_consultation_student_password'){
+      if(caller.role!=='personal'||!uuid(body.target))return reply(req,403,{error:'Ação não permitida.'});
+      const {data:consultation,error:consultationError}=await admin.from('hpe_consultation_students').select('student_id').eq('id',body.target).eq('personal_id',caller.id).maybeSingle();
+      if(consultationError||!consultation)return reply(req,404,{error:'Aluno não encontrado na sua carteira.'});
+      const {data:student,error:studentError}=await admin.from('hpe_profiles').select('id,access_code').eq('id',consultation.student_id).eq('role','aluno').eq('consultation_only',true).maybeSingle();
+      if(studentError||!student)return reply(req,404,{error:'Conta da consultoria não encontrada.'});
+      const password=temporaryPassword();
+      const {error:flagError}=await admin.from('hpe_profiles').update({password_setup_required:true}).eq('id',student.id);
+      if(flagError)return reply(req,409,{error:'Não foi possível preparar a redefinição. Tente novamente.'});
+      const {error}=await admin.auth.admin.updateUserById(student.id,{password});
+      if(error){await admin.from('hpe_profiles').update({password_setup_required:false}).eq('id',student.id);return reply(req,409,{error:'Não foi possível redefinir a senha. Tente novamente.'})}
+      return reply(req,200,{access_code:student.access_code,temporary_password:password});
+    }
     if(body.action==='list'){
-      let query=admin.from('hpe_profiles').select('*').order('created_at');
+      let query=admin.from('hpe_profiles').select('*').eq('consultation_only',false).order('created_at');
       if(caller.role==='personal')query=query.or(`id.eq.${caller.id},personal_id.eq.${caller.id}`);
       const {data:profiles,error}=await query;if(error)throw error;
       let requestsQuery=admin.from('hpe_license_requests').select('*').order('created_at');
@@ -84,7 +139,7 @@ Deno.serve(async req=>{
     }
     if(body.action==='reset_student_password'){
       if(!uuid(body.target))return reply(req,400,{error:'Identificador inválido.'});
-      let studentQuery=admin.from('hpe_profiles').select('id,personal_id,access_code,role').eq('id',body.target).eq('role','aluno');
+      let studentQuery=admin.from('hpe_profiles').select('id,personal_id,access_code,role').eq('id',body.target).eq('role','aluno').eq('consultation_only',false);
       if(caller.role==='personal')studentQuery=studentQuery.eq('personal_id',caller.id);
       const {data:student,error:studentError}=await studentQuery.maybeSingle();
       if(studentError||!student)return reply(req,404,{error:'Aluno não encontrado na sua lista.'});
@@ -97,7 +152,7 @@ Deno.serve(async req=>{
     }
     if(body.action==='update_student'||body.action==='delete_student'){
       if(!uuid(body.target))return reply(req,400,{error:'Identificador inválido.'});
-      let studentQuery=admin.from('hpe_profiles').select('id').eq('id',body.target).eq('role','aluno');
+      let studentQuery=admin.from('hpe_profiles').select('id').eq('id',body.target).eq('role','aluno').eq('consultation_only',false);
       if(caller.role==='personal')studentQuery=studentQuery.eq('personal_id',caller.id);
       const {data:student,error:studentError}=await studentQuery.maybeSingle();
       if(studentError||!student)return reply(req,404,{error:'Aluno não encontrado na sua lista.'});
@@ -143,7 +198,7 @@ Deno.serve(async req=>{
     const initialPassword=studentAccount?temporaryPassword():password;
     const {data:created,error:createError}=await admin.auth.admin.createUser({email:authEmail,password:initialPassword,email_confirm:true});
     if(createError||!created.user)return reply(req,409,{error:studentAccount?'Não foi possível criar a conta do aluno. Tente novamente.':'Não foi possível criar a conta. Confira se o e-mail já existe e se a senha atende às regras.'});
-    const newProfile={id:created.user.id,name,email:authEmail,access_code:accessCode,password_setup_required:studentAccount,role,personal_id:studentAccount?caller.id:null,license_limit:20,lifetime:false,goal:['Hipertrofia','Condicionamento','Força'].includes(body.goal)?body.goal:'Hipertrofia',level:['Iniciante','Intermediário','Avançado'].includes(body.level)?body.level:'Iniciante',whatsapp:studentAccount&&typeof body.whatsapp==='string'?body.whatsapp.slice(0,24):'',training_days:[...new Set(days)]};
+    const newProfile={id:created.user.id,name,email:authEmail,access_code:accessCode,password_setup_required:studentAccount,role,personal_id:studentAccount?caller.id:null,consultation_only:false,license_limit:20,lifetime:false,goal:['Hipertrofia','Condicionamento','Força'].includes(body.goal)?body.goal:'Hipertrofia',level:['Iniciante','Intermediário','Avançado'].includes(body.level)?body.level:'Iniciante',whatsapp:studentAccount&&typeof body.whatsapp==='string'?body.whatsapp.slice(0,24):'',training_days:[...new Set(days)]};
     const {error:insertError}=await admin.from('hpe_profiles').insert(newProfile);
     if(insertError){
       const {error:cleanupError}=await admin.auth.admin.deleteUser(created.user.id);
