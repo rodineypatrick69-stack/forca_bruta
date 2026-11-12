@@ -1,18 +1,19 @@
 begin;
-create or replace function public.hpe_student_permission(target uuid, channel text, writing boolean)
+create or replace function hpe_private.hpe_student_permission(target uuid, channel text, writing boolean)
 returns boolean language sql stable security definer set search_path='' as $$
  select exists (
   select 1 from public.hpe_profiles student
   join public.hpe_profiles caller on caller.id=auth.uid()
-  where student.id=target and student.role='aluno' and (
+  where student.id=target and student.role='aluno' and not student.consultation_only and (
    (caller.id=student.id and (not writing or channel in ('progress','chat'))) or
    (caller.role='personal' and caller.id=student.personal_id) or
    (caller.role='adm' and not writing)
   )
  );
 $$;
-revoke all on function public.hpe_student_permission(uuid,text,boolean) from public,anon;
-grant execute on function public.hpe_student_permission(uuid,text,boolean) to authenticated;
+grant usage on schema hpe_private to authenticated;
+revoke all on function hpe_private.hpe_student_permission(uuid,text,boolean) from public,anon;
+grant execute on function hpe_private.hpe_student_permission(uuid,text,boolean) to authenticated;
 create table if not exists public.hpe_student_shared(
  student_id uuid not null references public.hpe_profiles(id) on delete cascade,
  channel text not null check(channel in ('program','progress')),
@@ -25,20 +26,20 @@ revoke all on public.hpe_student_shared from anon,authenticated;
 grant select,insert,update on public.hpe_student_shared to authenticated;
 drop policy if exists hpe_shared_read on public.hpe_student_shared;
 create policy hpe_shared_read on public.hpe_student_shared for select to authenticated
-using(public.hpe_student_permission(student_id,channel,false));
+using(hpe_private.hpe_student_permission(student_id,channel,false));
 drop policy if exists hpe_shared_insert on public.hpe_student_shared;
 create policy hpe_shared_insert on public.hpe_student_shared for insert to authenticated
-with check(public.hpe_student_permission(student_id,channel,true));
+with check(hpe_private.hpe_student_permission(student_id,channel,true));
 drop policy if exists hpe_shared_update on public.hpe_student_shared;
 create policy hpe_shared_update on public.hpe_student_shared for update to authenticated
-using(public.hpe_student_permission(student_id,channel,true))
-with check(public.hpe_student_permission(student_id,channel,true));
+using(hpe_private.hpe_student_permission(student_id,channel,true))
+with check(hpe_private.hpe_student_permission(student_id,channel,true));
 
 create or replace function public.hpe_save_student(target uuid,kind text,expected_revision bigint,student_payload jsonb)
 returns bigint language plpgsql security invoker set search_path='' as $$
 declare rev bigint;
 begin
- if not public.hpe_student_permission(target,kind,true) then raise exception 'FORBIDDEN'; end if;
+ if not hpe_private.hpe_student_permission(target,kind,true) then raise exception 'FORBIDDEN'; end if;
  if jsonb_typeof(student_payload)<>'object' or pg_column_size(student_payload)>5000000 then raise exception 'INVALID_PAYLOAD'; end if;
  if expected_revision=0 then
   insert into public.hpe_student_shared(student_id,channel,payload) values(target,kind,student_payload)
@@ -62,8 +63,10 @@ revoke all on public.hpe_student_messages from anon,authenticated;
 grant select,insert on public.hpe_student_messages to authenticated;
 drop policy if exists hpe_chat_read on public.hpe_student_messages;
 create policy hpe_chat_read on public.hpe_student_messages for select to authenticated
-using(public.hpe_student_permission(student_id,'chat',false));
+using(hpe_private.hpe_student_permission(student_id,'chat',false));
 drop policy if exists hpe_chat_insert on public.hpe_student_messages;
 create policy hpe_chat_insert on public.hpe_student_messages for insert to authenticated
-with check(author_id=auth.uid() and public.hpe_student_permission(student_id,'chat',true));
+with check(author_id=(select auth.uid()) and hpe_private.hpe_student_permission(student_id,'chat',true));
+revoke all on function public.hpe_student_permission(uuid,text,boolean) from public,anon,authenticated;
+drop function if exists public.hpe_student_permission(uuid,text,boolean);
 commit;

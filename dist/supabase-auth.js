@@ -68,7 +68,7 @@ async function hpeOpenSession(session,selected){
   const {data:userResult,error:userError}=await hpeAuth.auth.getUser();
   if(version!==hpeAuthVersion||hpeRecovery)return;
   if(userError||!userResult.user){hpeSignedOut();hpeError('Sua sessão expirou. Entre novamente.');return}
-  const {data:profile,error}=await hpeAuth.from('hpe_profiles').select('id,name,role,personal_id,license_limit,lifetime,password_setup_required').eq('id',userResult.user.id).maybeSingle();
+  const {data:profile,error}=await hpeAuth.from('hpe_profiles').select('id,name,role,personal_id,license_limit,lifetime,password_setup_required,consultation_only').eq('id',userResult.user.id).maybeSingle();
   if(version!==hpeAuthVersion||hpeRecovery)return;
   if(error||!profile||!['adm','personal','aluno'].includes(profile.role)){
     await hpeAuth.auth.signOut();hpeSignedOut();hpeError(error?'Não foi possível consultar seu perfil. Confira a configuração de hpe_profiles no Supabase.':'Sua conta ainda não tem um perfil autorizado. Solicite o cadastro ao administrador.');return;
@@ -76,6 +76,14 @@ async function hpeOpenSession(session,selected){
   if(selected&&selected!==profile.role){await hpeAuth.auth.signOut();hpeSignedOut();hpeError('Esta conta pertence a outro perfil. Selecione Administrador, Sou personal ou Sou aluno conforme seu cadastro.');return}
   if(profile.role==='aluno'&&profile.password_setup_required){hpeProfile=profile;window.hpeDataKey='hpe-user-'+profile.id;hpePromptStudentPasswordSetup();return}
   hpePasswordSetupActive=false;hpeProfile=profile;window.hpeDataKey='hpe-user-'+profile.id;
+  if(profile.consultation_only===true){
+    data=hpeEmptyData(profile);
+    sessionStorage.setItem('forja-identity',JSON.stringify({role:'aluno',personalId:null,studentId:1}));
+    sessionStorage.setItem('forja-session','aluno');
+    enterApp('aluno');window.hpeConsultEnterStudent?.();
+    $('header .avatar').textContent=profile.name.split(' ').map(x=>x[0]).slice(0,2).join('');
+    return;
+  }
   let stored;try{stored=JSON.parse(localStorage.getItem(window.hpeDataKey))}catch{}
   if(!stored&&profile.role==='adm'){try{stored=JSON.parse(localStorage.getItem('forja-v1'))}catch{}}
   data=stored||hpeEmptyData(profile);if(typeof hpeSyncStart==='function')await hpeSyncStart(profile);save();if(typeof hpeAccountsRefresh==='function')await hpeAccountsRefresh();
@@ -88,7 +96,7 @@ logoutButton.onclick=async()=>{++hpeAuthVersion;hpeRecovery=false;hpeSignedOut()
 window.hpeForgotPassword=()=>{
   if(loginRole==='aluno'){const code=$('#loginForm')?.elements.access_code?.value?.trim().toUpperCase()||'';modal(`<h2>Redefinir senha</h2><p>Peça ao seu personal para redefinir sua senha. Ele pode gerar uma senha temporária na lista de alunos.</p>${code?`<p>Seu código de acesso continua o mesmo: <strong>${esc(code)}</strong></p>`:''}<button class="primary" onclick="$('#modal').close()">Entendi</button>`);return}
   modal('<h2>Recuperar senha</h2><p>Informe o e-mail cadastrado no Supabase.</p><form id="hpeRecoveryRequest"><label>E-mail<input name="email" type="email" required autocomplete="email"></label><p id="hpeRecoveryStatus" role="status"></p><button class="primary">Solicitar link de recuperação</button></form><p class="note">O envio para alunos e professores depende do SMTP configurado no Supabase. O serviço padrão permite apenas testes com integrantes do projeto.</p>');
-  $('#hpeRecoveryRequest').onsubmit=async event=>{event.preventDefault();const status=$('#hpeRecoveryStatus'),button=event.target.querySelector('button');button.disabled=true;try{if(!hpeAuth)throw Error();const {error}=await hpeAuth.auth.resetPasswordForEmail(new FormData(event.target).get('email').trim().toLowerCase(),{redirectTo:'https://forja-treino-academia.younggoby6.chatgpt.site/'});status.textContent=error?'Não foi possível solicitar o envio. O administrador deve conferir SMTP, destinatários autorizados e limites do Supabase.':'Solicitação recebida. Se houver uma conta elegível e o envio estiver configurado, você receberá o link. Confira também o spam.'}catch{status.textContent='Não foi possível conectar ao serviço. Tente novamente.'}finally{button.disabled=false}};
+  $('#hpeRecoveryRequest').onsubmit=async event=>{event.preventDefault();const status=$('#hpeRecoveryStatus'),button=event.target.querySelector('button');button.disabled=true;try{if(!hpeAuth)throw Error();const {error}=await hpeAuth.auth.resetPasswordForEmail(new FormData(event.target).get('email').trim().toLowerCase(),{redirectTo:'https://forja-treino-academia.rodineypatrick69.chatgpt.site/'});status.textContent=error?'Não foi possível solicitar o envio. O administrador deve conferir SMTP, destinatários autorizados e limites do Supabase.':'Solicitação recebida. Se houver uma conta elegível e o envio estiver configurado, você receberá o link. Confira também o spam.'}catch{status.textContent='Não foi possível conectar ao serviço. Tente novamente.'}finally{button.disabled=false}};
 };
 function hpeNewPassword(){
   hpeRecovery=true;hpeProfile=null;++hpeAuthVersion;showLogin('aluno');

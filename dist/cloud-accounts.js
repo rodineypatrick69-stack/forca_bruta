@@ -10,8 +10,11 @@ async function hpeAccountsRefresh(){ if(window.hpeNetworkAllowed?.()===false)ret
   if(!hpeProfile||hpeProfile.role==='aluno')return;
   try{
     const result=await hpeAccountsCall({action:'list'});hpeDirectory=result.profiles;hpeRequests=result.requests;hpeDirectoryError='';hpeDirectoryLoaded=true;
+    const {data:consultRows,error:consultError}=await hpeAuth.from('hpe_consultation_students').select('student_id').eq('personal_id',hpeProfile.id);if(consultError)throw consultError;
+    window.hpeConsultationAccountIds=new Set((consultRows||[]).map(row=>row.student_id));
     data.personalAccounts=hpeDirectory.filter(p=>p.role==='personal').map(p=>({id:p.id,name:p.name,email:p.email||'',limit:p.license_limit,lifetime:p.lifetime}));
     for(const p of hpeDirectory.filter(p=>p.role==='aluno')){
+      if(window.hpeConsultationAccountIds.has(p.id))continue;
       let s=data.students.find(s=>s.supabaseId===p.id);
       if(!s){let id=Date.now();while(data.students.some(s=>s.id===id))id++;s={id,supabaseId:p.id};data.students.push(s)}
       Object.assign(s,{name:p.name,personalId:p.personal_id,accessCode:p.access_code||'',goal:p.goal,level:p.level,whatsapp:p.whatsapp??''});
