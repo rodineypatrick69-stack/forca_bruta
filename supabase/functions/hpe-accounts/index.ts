@@ -2,6 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.117.3';
 
 const site='https://forja-treino-academia.rodineypatrick69.chatgpt.site';
 const allowedOrigins=new Set([site,'https://forcabruta.vercel.app']);
+const allowedPreviewOrigin=origin=>/^https:\/\/forcabruta-[a-z0-9-]+-rodineypatrick69-9071\.vercel\.app$/.test(origin||'');
 const cors=req=>({'Access-Control-Allow-Origin':req.headers.get('origin')||site,'Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'POST, OPTIONS','Vary':'Origin'});
 const reply=(req,status,body)=>new Response(JSON.stringify(body),{status,headers:{...cors(req),'Content-Type':'application/json','Cache-Control':'no-store'}});
 const randomAccessCode=()=>String(crypto.getRandomValues(new Uint32Array(1))[0]%1000000).padStart(6,'0');
@@ -10,7 +11,7 @@ const uuid=(s)=>typeof s==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a
 
 Deno.serve(async req=>{
   const origin=req.headers.get('origin');
-  if(origin&&!allowedOrigins.has(origin))return reply(req,403,{error:'Origem não permitida.'});
+  if(origin&&!allowedOrigins.has(origin)&&!allowedPreviewOrigin(origin))return reply(req,403,{error:'Origem não permitida.'});
   if(req.method==='OPTIONS')return new Response('ok',{headers:cors(req)});
   if(req.method!=='POST')return reply(req,405,{error:'Método não permitido.'});
   try{
@@ -40,6 +41,58 @@ Deno.serve(async req=>{
     if(authError||!auth.user)return reply(req,401,{error:'Sessão inválida. Entre novamente.'});
     const {data:caller,error:profileError}=await admin.from('hpe_profiles').select('*').eq('id',auth.user.id).single();
     if(profileError||!caller)return reply(req,401,{error:'Sessão inválida. Entre novamente.'});
+
+    if(body.action==='discovery_visibility'){
+      if(!['aluno','personal'].includes(caller.role))return reply(req,403,{error:'Este perfil não pode aparecer na busca.'});
+      if(body.enabled===false){
+        const {error}=await admin.from('hpe_discovery').delete().eq('profile_id',caller.id);
+        if(error)return reply(req,503,{error:'A busca ainda precisa ser configurada pelo administrador.'});
+        return reply(req,200,{ok:true,visible:false});
+      }
+      const latitude=body.latitude,longitude=body.longitude;
+      if(body.enabled!==true||typeof latitude!=='number'||!Number.isFinite(latitude)||latitude < -90||latitude > 90||typeof longitude!=='number'||!Number.isFinite(longitude)||longitude < -180||longitude > 180)return reply(req,400,{error:'Não foi possível validar a localização.'});
+      const {error}=await admin.from('hpe_discovery').upsert({profile_id:caller.id,role:caller.role,latitude,longitude,updated_at:new Date().toISOString()},{onConflict:'profile_id'});
+      if(error)return reply(req,503,{error:'A busca ainda precisa ser configurada pelo administrador.'});
+      return reply(req,200,{ok:true,visible:true,expires_in_hours:24});
+    }
+    if(body.action==='discovery_status'){
+      if(!['aluno','personal'].includes(caller.role))return reply(req,403,{error:'Este perfil não pode usar a busca.'});
+      const {data,error}=await admin.from('hpe_discovery').select('updated_at').eq('profile_id',caller.id).maybeSingle();
+      if(error)return reply(req,503,{error:'A busca ainda precisa ser configurada pelo administrador.'});
+      const fresh=data&&Date.now()-new Date(data.updated_at).getTime()<24*60*60*1000;
+      return reply(req,200,{visible:!!fresh,updated_at:fresh?data.updated_at:null});
+    }
+    if(body.action==='discovery_nearby'){
+      if(!['aluno','personal'].includes(caller.role))return reply(req,403,{error:'Este perfil não pode usar a busca.'});
+      const latitude=body.latitude,longitude=body.longitude;
+      if(typeof latitude!=='number'||!Number.isFinite(latitude)||latitude < -90||latitude > 90||typeof longitude!=='number'||!Number.isFinite(longitude)||longitude < -180||longitude > 180)return reply(req,400,{error:'Não foi possível validar a localização.'});
+      const radiusKm=Number.isFinite(body.radius_km)?Math.min(20,Math.max(1,body.radius_km)):10;
+      const targetRole=caller.role==='aluno'?'personal':'aluno';
+      let directoryQuery=admin.from('hpe_profiles').select('id,name,role,personal_id,whatsapp,consultation_only').eq('role',targetRole).eq('consultation_only',false).limit(500);
+      if(caller.role==='personal')directoryQuery=directoryQuery.is('personal_id',null);
+      const {data:directory,error:directoryError}=await directoryQuery;
+      if(directoryError)return reply(req,503,{error:'Não foi possível carregar a lista de perfis.'});
+      if(!directory?.length)return reply(req,200,{results:[],radius_km:radiusKm,expires_in_hours:24});
+      const ids=directory.map(profile=>profile.id);
+      const recent=new Date(Date.now()-24*60*60*1000).toISOString();
+      const {data:locations,error:locationsError}=await admin.from('hpe_discovery').select('profile_id,latitude,longitude,updated_at').eq('role',targetRole).in('profile_id',ids).gte('updated_at',recent).limit(500);
+      if(locationsError)return reply(req,503,{error:'Não foi possível carregar as localizações compartilhadas.'});
+      const profiles=new Map(directory.map(profile=>[profile.id,profile]));
+      const toRad=degrees=>degrees*Math.PI/180;
+      const found=[];
+      for(const location of locations||[]){
+        const profile=profiles.get(location.profile_id);if(!profile)continue;
+        const dLat=toRad(location.latitude-latitude),dLon=toRad(location.longitude-longitude),lat1=toRad(latitude),lat2=toRad(location.latitude);
+        const a=Math.sin(dLat/2)**2+Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
+        const distance=12742000*Math.asin(Math.sqrt(Math.min(1,a)));
+        if(distance>radiusKm*1000)continue;
+        const y=Math.sin(dLon)*Math.cos(lat2),x=Math.cos(lat1)*Math.sin(lat2)-Math.sin(lat1)*Math.cos(lat2)*Math.cos(dLon);
+        const bearing=(Math.atan2(y,x)*180/Math.PI+360)%360;
+        found.push({name:profile.name,role:profile.role,whatsapp:profile.whatsapp||'',distance_km:Math.round(distance/100)/10,bearing_deg:Math.round(bearing/5)*5%360,updated_at:location.updated_at});
+      }
+      found.sort((a,b)=>a.distance_km-b.distance_km);
+      return reply(req,200,{results:found.slice(0,100),radius_km:radiusKm,expires_in_hours:24});
+    }
     if(body.action==='complete_student_password_setup'){
       if(caller.role!=='aluno')return reply(req,403,{error:'Apenas alunos podem concluir a configuração da senha.'});
       if(!caller.password_setup_required)return reply(req,200,{ok:true});
