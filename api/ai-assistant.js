@@ -48,6 +48,10 @@ function parseBody(body) {
   return {};
 }
 
+function isModelEnabled() {
+  return Boolean(process.env.NVIDIA_API_KEY && process.env.NVIDIA_API_PRODUCTION_LICENSED === "true");
+}
+
 function consumeRateLimit(userId) {
   const now = Date.now();
   const current = requestsByUser.get(userId);
@@ -88,7 +92,7 @@ module.exports = async function aiAssistant(req, res) {
   if (!allowOrigin(origin, res)) return send(res, 403, { error: "ORIGIN_NOT_ALLOWED", message: "Origem não autorizada." });
 
   if (req.method === "OPTIONS") return res.status(204).end();
-  if (req.method === "GET") return send(res, 200, { available: Boolean(process.env.NVIDIA_API_KEY) });
+  if (req.method === "GET") return send(res, 200, { available: isModelEnabled() });
   if (req.method !== "POST") return send(res, 405, { error: "METHOD_NOT_ALLOWED", message: "Use POST." });
 
   const authorization = req.headers.authorization || "";
@@ -103,7 +107,7 @@ module.exports = async function aiAssistant(req, res) {
   }
   if (!profile) return send(res, 403, { error: "PERSONAL_ONLY", message: "Este assistente está disponível apenas para personais cadastrados." });
   if (!consumeRateLimit(profile.id)) return send(res, 429, { error: "RATE_LIMITED", message: "Aguarde um minuto antes de enviar novas perguntas." });
-  if (!process.env.NVIDIA_API_KEY) {
+  if (!isModelEnabled()) {
     return send(res, 503, { error: "AI_NOT_CONFIGURED", message: "O assistente ainda está sendo configurado." });
   }
 
