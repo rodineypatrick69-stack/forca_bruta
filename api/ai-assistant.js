@@ -88,6 +88,7 @@ module.exports = async function aiAssistant(req, res) {
   if (!allowOrigin(origin, res)) return send(res, 403, { error: "ORIGIN_NOT_ALLOWED", message: "Origem não autorizada." });
 
   if (req.method === "OPTIONS") return res.status(204).end();
+  if (req.method === "GET") return send(res, 200, { available: Boolean(process.env.NVIDIA_API_KEY) });
   if (req.method !== "POST") return send(res, 405, { error: "METHOD_NOT_ALLOWED", message: "Use POST." });
 
   const authorization = req.headers.authorization || "";
