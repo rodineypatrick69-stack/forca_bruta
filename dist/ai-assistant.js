@@ -1,5 +1,7 @@
 (() => {
-  const API_URL = 'https://forcabruta.vercel.app/api/ai-assistant';
+  const API_URL = window.location.hostname.endsWith('.vercel.app')
+    ? `${window.location.origin}/api/ai-assistant`
+    : 'https://forcabruta.vercel.app/api/ai-assistant';
   const query = (selector, root = document) => root.querySelector(selector);
   let conversation = [];
   let sending = false;
