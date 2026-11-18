@@ -60,6 +60,7 @@ Deno.serve(async req=>{
       const {data,error}=await admin.from('hpe_discovery').select('updated_at').eq('profile_id',caller.id).maybeSingle();
       if(error)return reply(req,503,{error:'A busca ainda precisa ser configurada pelo administrador.'});
       const fresh=data&&Date.now()-new Date(data.updated_at).getTime()<24*60*60*1000;
+      if(data&&!fresh)await admin.from('hpe_discovery').delete().eq('profile_id',caller.id);
       return reply(req,200,{visible:!!fresh,updated_at:fresh?data.updated_at:null});
     }
     if(body.action==='discovery_nearby'){
@@ -75,6 +76,7 @@ Deno.serve(async req=>{
       if(!directory?.length)return reply(req,200,{results:[],radius_km:radiusKm,expires_in_hours:24});
       const ids=directory.map(profile=>profile.id);
       const recent=new Date(Date.now()-24*60*60*1000).toISOString();
+      await admin.from('hpe_discovery').delete().lt('updated_at',recent);
       const {data:locations,error:locationsError}=await admin.from('hpe_discovery').select('profile_id,latitude,longitude,updated_at').eq('role',targetRole).in('profile_id',ids).gte('updated_at',recent).limit(500);
       if(locationsError)return reply(req,503,{error:'Não foi possível carregar as localizações compartilhadas.'});
       const profiles=new Map(directory.map(profile=>[profile.id,profile]));
