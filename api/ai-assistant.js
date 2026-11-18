@@ -49,7 +49,11 @@ function parseBody(body) {
 }
 
 function isModelEnabled() {
-  return Boolean(process.env.NVIDIA_API_KEY && process.env.NVIDIA_API_PRODUCTION_LICENSED === "true");
+  const environment = process.env.VERCEL_ENV;
+  const isTest = environment === "preview" || environment === "development";
+  const isLicensedProduction = environment === "production" &&
+    process.env.NVIDIA_API_PRODUCTION_LICENSED === "true";
+  return Boolean(process.env.NVIDIA_API_KEY && (isTest || isLicensedProduction));
 }
 
 function consumeRateLimit(userId) {
@@ -89,7 +93,8 @@ async function getPersonalProfile(accessToken) {
 module.exports = async function aiAssistant(req, res) {
   res.setHeader("Cache-Control", "no-store");
   const origin = req.headers.origin || "";
-  if (!allowOrigin(origin, res)) return send(res, 403, { error: "ORIGIN_NOT_ALLOWED", message: "Origem não autorizada." });
+  const isAllowedOrigin = origin ? allowOrigin(origin, res) : req.headers["sec-fetch-site"] === "same-origin";
+  if (!isAllowedOrigin) return send(res, 403, { error: "ORIGIN_NOT_ALLOWED", message: "Origem não autorizada." });
 
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method === "GET") return send(res, 200, { available: isModelEnabled() });
