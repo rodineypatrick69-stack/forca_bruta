@@ -9,6 +9,19 @@ const randomAccessCode=()=>String(crypto.getRandomValues(new Uint32Array(1))[0]%
 const temporaryPassword=()=>{const chars='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';const bytes=crypto.getRandomValues(new Uint8Array(18));return Array.from(bytes,b=>chars[b%chars.length]).join('')+'!';};
 const uuid=(s)=>typeof s==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 
+async function allowIndependentSignup(req,admin,secret){
+  const forwarded=(req.headers.get('x-forwarded-for')||'').split(',')[0].trim();
+  const ip=(req.headers.get('cf-connecting-ip')||req.headers.get('x-real-ip')||forwarded||'unknown').trim().slice(0,128);
+  const encoder=new TextEncoder();
+  const key=await crypto.subtle.importKey('raw',encoder.encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);
+  const digest=await crypto.subtle.sign('HMAC',key,encoder.encode(ip));
+  const ipHash=Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,'0')).join('');
+  const {data,error}=await admin.rpc('hpe_allow_independent_signup',{signup_ip_hash:ipHash});
+  if(error)throw error;
+  return data===true;
+}
+
+
 Deno.serve(async req=>{
   const origin=req.headers.get('origin');
   if(origin&&!allowedOrigins.has(origin)&&!allowedPreviewOrigin(origin))return reply(req,403,{error:'Origem não permitida.'});
@@ -35,6 +48,45 @@ Deno.serve(async req=>{
       if(loginError||!login.session)return reply(req,401,{error:'Código ou senha inválidos.'});
       return reply(req,200,{session:login.session,must_set_password:student.password_setup_required===true});
     }
+
+    if(body.action==='create_independent_student'){
+      const name=typeof body.name==='string'?body.name.trim():'';
+      const email=typeof body.email==='string'?body.email.trim().toLowerCase():'';
+      const password=typeof body.password==='string'?body.password:'';
+      const whatsapp=typeof body.whatsapp==='string'?body.whatsapp.trim():'';
+      const goal=body.goal,level=body.level;
+      const validEmail=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)&&email.length<=254;
+      const validName=name.length>=2&&name.length<=80&&!/[\u0000-\u001f\u007f]/.test(name);
+      const validPassword=password.length>=8&&password.length<=128;
+      const validWhatsApp=whatsapp.length<=24&&(!whatsapp||/^\+?[0-9\s().-]{8,24}$/.test(whatsapp));
+      if(!validName||!validEmail||!validPassword||!validWhatsApp||
+         !['Hipertrofia','Condicionamento','Força'].includes(goal)||
+         !['Iniciante','Intermediário','Avançado'].includes(level)){
+        return reply(req,400,{error:'Confira o nome, o e-mail, a senha e as opções do perfil.'});
+      }
+      let allowed;
+      try{allowed=await allowIndependentSignup(req,admin,secret)}catch{return reply(req,503,{error:'Cadastro temporariamente indisponível. Tente novamente.'})}
+      if(!allowed)return reply(req,429,{error:'Limite de tentativas atingido. Tente novamente em 15 minutos.'});
+      let accessCode=null;
+      for(let attempt=0;attempt<20;attempt++){
+        const candidate=randomAccessCode();
+        const {data:existing,error:codeError}=await admin.from('hpe_profiles').select('id').eq('access_code',candidate).maybeSingle();
+        if(codeError)return reply(req,503,{error:'Cadastro temporariamente indisponível. Tente novamente.'});
+        if(!existing){accessCode=candidate;break}
+      }
+      if(!accessCode)return reply(req,503,{error:'Não foi possível gerar o acesso agora. Tente novamente.'});
+      const {data:created,error:createError}=await admin.auth.admin.createUser({email,password,email_confirm:true});
+      if(createError||!created.user)return reply(req,409,{error:'Não foi possível criar a conta. Se você já tem cadastro, entre com seu e-mail.'});
+      const profile={id:created.user.id,name,email,access_code:accessCode,password_setup_required:false,role:'aluno',personal_id:null,consultation_only:false,license_limit:0,lifetime:false,goal,level,whatsapp,training_days:[]};
+      const {error:profileError}=await admin.from('hpe_profiles').insert(profile);
+      if(profileError){
+        const {error:cleanupError}=await admin.auth.admin.deleteUser(created.user.id);
+        if(cleanupError)return reply(req,500,{error:'Não foi possível concluir o cadastro. Entre em contato com o suporte.'});
+        return reply(req,409,{error:'Não foi possível concluir o cadastro. Confira os dados e tente novamente.'});
+      }
+      return reply(req,201,{profile:{id:profile.id,name,role:'aluno',personal_id:null,consultation_only:false,goal,level}});
+    }
+
     const bearer=req.headers.get('authorization')||'';
     if(!bearer.startsWith('Bearer '))return reply(req,401,{error:'Entre novamente.'});
     const {data:auth,error:authError}=await admin.auth.getUser(bearer.slice(7));

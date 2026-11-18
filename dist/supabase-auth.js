@@ -4,31 +4,38 @@ const hpeAuth=window.supabase?.createClient('https://jzvzlcdaywqjhserndyf.supaba
 let hpeProfile=null,hpeRecovery=false,hpeAuthVersion=0,hpePasswordSetupActive=false;
 const localLogin=showLogin,localEnter=enterApp;
 function hpeError(message){const error=$('#loginError');if(error){error.hidden=false;error.textContent=message}}
-function hpeSignedOut(){hpeProfile=null;hpePasswordSetupActive=false;window.hpeDataKey='hpe-pending-v1';sessionStorage.removeItem('forja-session');sessionStorage.removeItem('forja-identity');done.clear();$('#modal').close();const picker=$('#role');if(picker){picker.hidden=false;picker.disabled=false}showLogin(loginRole)}
+function hpeSignedOut(){window.hpeIndependentMode=false;hpeProfile=null;hpePasswordSetupActive=false;window.hpeDataKey='hpe-pending-v1';sessionStorage.removeItem('forja-session');sessionStorage.removeItem('forja-identity');done.clear();$('#modal').close();const picker=$('#role');if(picker){picker.hidden=false;picker.disabled=false}showLogin(loginRole)}
 showLogin=function(selected=loginRole){
   localLogin(selected);
   const loginInput=$('#loginForm input[name=email]');
   loginInput.type=selected==='aluno'?'text':'email';
   loginInput.name=selected==='aluno'?'access_code':'email';
-  loginInput.placeholder=selected==='aluno'?'Código de 6 números fornecido pelo personal':'Seu e-mail cadastrado';
+  loginInput.placeholder=selected==='aluno'?'Código do personal ou e-mail da conta autônoma':'Seu e-mail cadastrado';
   loginInput.autocomplete='username';
-  loginInput.maxLength=selected==='aluno'?16:254;
-  loginInput.inputMode=selected==='aluno'?'numeric':'email';
-  const loginLabel=loginInput.closest('label');if(loginLabel)loginLabel.firstChild.textContent=selected==='aluno'?'Código de acesso':'E-mail';
-  $('.demo-access').innerHTML=selected==='aluno'?'<b>Acesso do aluno</b><p>Digite os 6 números e a senha temporária recebidos do personal. No primeiro acesso, escolha uma nova senha.</p><button type="button" onclick="hpeForgotPassword()">Preciso redefinir minha senha</button>':'<b>Login conectado ao Supabase</b><p>Use o e-mail cadastrado para entrar.</p><button type="button" onclick="hpeForgotPassword()">Esqueci minha senha</button>';
-  const note=$('.login-card > .note');if(note)note.textContent=selected==='aluno'?'No primeiro acesso, escolha sua senha pessoal. Se esquecer, peça ao personal uma nova senha temporária.':'Acesso autenticado pelo Supabase.';
+  loginInput.maxLength=254;
+  loginInput.inputMode=selected==='aluno'?'text':'email';
+  const loginLabel=loginInput.closest('label');if(loginLabel)loginLabel.firstChild.textContent=selected==='aluno'?'Código ou e-mail do aluno':'E-mail';
+  $('.demo-access').innerHTML=selected==='aluno'?'<b>Acesso do aluno</b><p>Entre com o código e a senha recebidos do personal ou com o e-mail e a senha da sua conta autônoma.</p><button type="button" onclick="hpeForgotPassword()">Preciso redefinir minha senha</button>':'<b>Login conectado ao Supabase</b><p>Use o e-mail cadastrado para entrar.</p><button type="button" onclick="hpeForgotPassword()">Esqueci minha senha</button>';
+  const note=$('.login-card > .note');if(note)note.textContent=selected==='aluno'?'Use o código do personal ou o e-mail da sua conta autônoma para entrar.':'Acesso autenticado pelo Supabase.';
   $('#loginForm').onsubmit=async event=>{
     event.preventDefault();if(!hpeAuth){hpeError('O serviço de login não carregou. Atualize a página.');return}
     const form=new FormData(event.target),button=event.target.querySelector('button.primary');button.disabled=true;
     try{
       if(selected==='aluno'){
-        const code=String(form.get('access_code')||'').trim().toUpperCase();
-        if(!/^(?:[0-9]{6}|[A-F0-9]{16})$/.test(code)){hpeError('Informe os 6 números do código recebido do personal.');return}
-        const {data:result,error}=await hpeAuth.functions.invoke('hpe-accounts',{body:{action:'student_login',access_code:code,password:form.get('password')}});
-        if(error||!result?.session){hpeError('Código ou senha inválidos. Confira os dados recebidos do personal.');return}
-        const {data:sessionResult,error:setError}=await hpeAuth.auth.setSession({access_token:result.session.access_token,refresh_token:result.session.refresh_token});
-        if(setError||!sessionResult?.session){hpeError('Não foi possível iniciar sua sessão. Tente novamente.');return}
-        await hpeOpenSession(sessionResult.session,'aluno');
+        const identifier=String(form.get('access_code')||'').trim(),password=String(form.get('password')||'');
+        if(identifier.includes('@')){
+          const {data:login,error}=await hpeAuth.auth.signInWithPassword({email:identifier.toLowerCase(),password});
+          if(error||!login?.session){hpeError('E-mail ou senha inválidos.');return}
+          await hpeOpenSession(login.session,'aluno');
+        }else{
+          const code=identifier.toUpperCase();
+          if(!/^(?:[0-9]{6}|[A-F0-9]{16})$/.test(code)){hpeError('Informe o código do personal ou o e-mail da conta autônoma.');return}
+          const {data:result,error}=await hpeAuth.functions.invoke('hpe-accounts',{body:{action:'student_login',access_code:code,password}});
+          if(error||!result?.session){hpeError('Código ou senha inválidos. Confira os dados recebidos do personal.');return}
+          const {data:sessionResult,error:setError}=await hpeAuth.auth.setSession({access_token:result.session.access_token,refresh_token:result.session.refresh_token});
+          if(setError||!sessionResult?.session){hpeError('Não foi possível iniciar sua sessão. Tente novamente.');return}
+          await hpeOpenSession(sessionResult.session,'aluno');
+        }
       }else{
         const {data:result,error}=await hpeAuth.auth.signInWithPassword({email:String(form.get('email')||'').trim().toLowerCase(),password:form.get('password')});
         if(error){hpeError('Não foi possível entrar. Confira o e-mail, a senha e a confirmação da conta.');return}
@@ -38,7 +45,7 @@ showLogin=function(selected=loginRole){
   }
 };window.showLogin=showLogin;
 enterApp=function(selected){if(!hpeProfile||selected!==hpeProfile.role){showLogin();return}localEnter(selected)};
-function hpeEmptyData(profile){return {students:profile.role==='aluno'?[{id:1,name:profile.name,personalId:profile.personal_id,goal:'Definir objetivo',level:'Iniciante'}]:[],plans:{},logs:[],measurements:[],messages:[],personalAccounts:profile.role==='personal'?[{id:profile.id,name:profile.name,email:'Conta Supabase',limit:profile.license_limit,lifetime:profile.lifetime}]:[],studentAccounts:[],licenseRequests:[],dailyWater:{},studentGoals:{},excusedDays:{},appointments:[],monthlyFees:{},blockNames:{},alternatePlans:{}}}
+function hpeEmptyData(profile){return {students:profile.role==='aluno'?[{id:1,name:profile.name,personalId:profile.personal_id,goal:profile.goal||'Definir objetivo',level:profile.level||'Iniciante'}]:[],plans:{},logs:[],measurements:[],messages:[],personalAccounts:profile.role==='personal'?[{id:profile.id,name:profile.name,email:'Conta Supabase',limit:profile.license_limit,lifetime:profile.lifetime}]:[],studentAccounts:[],licenseRequests:[],dailyWater:{},studentGoals:{},excusedDays:{},appointments:[],monthlyFees:{},blockNames:{},alternatePlans:{}}}
 function hpePromptStudentPasswordSetup(){
   if(hpePasswordSetupActive&&$('#modal')?.open)return;
   hpePasswordSetupActive=true;
@@ -68,12 +75,13 @@ async function hpeOpenSession(session,selected){
   const {data:userResult,error:userError}=await hpeAuth.auth.getUser();
   if(version!==hpeAuthVersion||hpeRecovery)return;
   if(userError||!userResult.user){hpeSignedOut();hpeError('Sua sessão expirou. Entre novamente.');return}
-  const {data:profile,error}=await hpeAuth.from('hpe_profiles').select('id,name,role,personal_id,license_limit,lifetime,password_setup_required,consultation_only').eq('id',userResult.user.id).maybeSingle();
+  const {data:profile,error}=await hpeAuth.from('hpe_profiles').select('id,name,role,personal_id,license_limit,lifetime,password_setup_required,consultation_only,goal,level,training_days').eq('id',userResult.user.id).maybeSingle();
   if(version!==hpeAuthVersion||hpeRecovery)return;
   if(error||!profile||!['adm','personal','aluno'].includes(profile.role)){
     await hpeAuth.auth.signOut();hpeSignedOut();hpeError(error?'Não foi possível consultar seu perfil. Confira a configuração de hpe_profiles no Supabase.':'Sua conta ainda não tem um perfil autorizado. Solicite o cadastro ao administrador.');return;
   }
   if(selected&&selected!==profile.role){await hpeAuth.auth.signOut();hpeSignedOut();hpeError('Esta conta pertence a outro perfil. Selecione Administrador, Sou personal ou Sou aluno conforme seu cadastro.');return}
+  window.hpeIndependentMode=profile.role==='aluno'&&profile.personal_id===null&&profile.consultation_only!==true;
   if(profile.role==='aluno'&&profile.password_setup_required){hpeProfile=profile;window.hpeDataKey='hpe-user-'+profile.id;hpePromptStudentPasswordSetup();return}
   hpePasswordSetupActive=false;hpeProfile=profile;window.hpeDataKey='hpe-user-'+profile.id;
   if(profile.consultation_only===true){
