@@ -70,6 +70,7 @@
     const button=document.getElementById('hpeNearbySearchButton');if(button)button.disabled=true;
     try{
       status('Solicitando sua localização…');const p=await getPosition();
+      if(state.visible)await call({action:'discovery_visibility',enabled:true,latitude:p.lat,longitude:p.lon});
       status('Buscando '+(hpeProfile.role==='aluno'?'personais cadastrados':'alunos sem personal')+' em até '+state.radius+' km…');
       const result=await call({action:'discovery_nearby',latitude:p.lat,longitude:p.lon,radius_km:state.radius});
       state.people=result.results||[];paint();
