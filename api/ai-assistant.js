@@ -90,10 +90,6 @@ module.exports = async function aiAssistant(req, res) {
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "POST") return send(res, 405, { error: "METHOD_NOT_ALLOWED", message: "Use POST." });
 
-  if (!process.env.NVIDIA_API_KEY) {
-    return send(res, 503, { error: "AI_NOT_CONFIGURED", message: "O assistente ainda está sendo configurado." });
-  }
-
   const authorization = req.headers.authorization || "";
   const match = authorization.match(/^Bearer\s+(.+)$/i);
   if (!match) return send(res, 401, { error: "AUTH_REQUIRED", message: "Entre no HPE para usar o assistente." });
@@ -106,6 +102,9 @@ module.exports = async function aiAssistant(req, res) {
   }
   if (!profile) return send(res, 403, { error: "PERSONAL_ONLY", message: "Este assistente está disponível apenas para personais cadastrados." });
   if (!consumeRateLimit(profile.id)) return send(res, 429, { error: "RATE_LIMITED", message: "Aguarde um minuto antes de enviar novas perguntas." });
+  if (!process.env.NVIDIA_API_KEY) {
+    return send(res, 503, { error: "AI_NOT_CONFIGURED", message: "O assistente ainda está sendo configurado." });
+  }
 
   let body;
   try {
