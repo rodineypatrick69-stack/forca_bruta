@@ -48,12 +48,18 @@ function parseBody(body) {
   return {};
 }
 
+function modelKey() {
+  const isPreview = process.env.VERCEL_ENV === "preview";
+  const key = (process.env.NVIDIA_API_KEY || (isPreview ? process.env.NVIDIA_API_Keys : "") || "").trim();
+  return isPreview && !key.startsWith("nvapi-") ? "" : key;
+}
+
 function isModelEnabled() {
   const environment = process.env.VERCEL_ENV;
   const isTest = environment === "preview" || environment === "development";
   const isLicensedProduction = environment === "production" &&
     process.env.NVIDIA_API_PRODUCTION_LICENSED === "true";
-  return Boolean(process.env.NVIDIA_API_KEY && (isTest || isLicensedProduction));
+  return Boolean(modelKey() && (isTest || isLicensedProduction));
 }
 
 function consumeRateLimit(userId) {
@@ -149,7 +155,7 @@ module.exports = async function aiAssistant(req, res) {
     const response = await fetch(NVIDIA_URL, {
       method: "POST",
       headers: {
-        Authorization: "Bearer " + process.env.NVIDIA_API_KEY,
+        Authorization: "Bearer " + modelKey(),
         "Content-Type": "application/json",
         Accept: "application/json"
       },
