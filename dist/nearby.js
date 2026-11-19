@@ -1,5 +1,5 @@
 (() => {
-  const state={visible:false,statusLoaded:false,busy:false,people:[],gyms:[],radius:10,position:null,heading:null,compassStarted:false,map:null,mapLayer:null,mapContainer:null};
+  const state={visible:false,statusLoaded:false,busy:false,people:[],gyms:[],gymSearchFailed:false,radius:10,position:null,heading:null,compassStarted:false,map:null,mapLayer:null,mapContainer:null};
   const directions=['N','NE','E','SE','S','SW','W','NW'];
   const direction=value=>directions[Math.round(((Number(value)||0)%360)/45)%8];
   const radians=x=>x*Math.PI/180;
@@ -15,10 +15,26 @@
     const meters=Math.min(20000,Math.max(1000,radius*1000));
     const approximatePosition={lat:Math.round(position.lat*1000)/1000,lon:Math.round(position.lon*1000)/1000};
     const around='(around:'+meters+','+approximatePosition.lat+','+approximatePosition.lon+')';
-    const query='[out:json][timeout:25];(node["leisure"="fitness_centre"]'+around+';way["leisure"="fitness_centre"]'+around+';relation["leisure"="fitness_centre"]'+around+';node["amenity"="gym"]'+around+';way["amenity"="gym"]'+around+';relation["amenity"="gym"]'+around+');out center tags;';
-    const response=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:'data='+encodeURIComponent(query),signal:AbortSignal.timeout(30000)});
-    if(!response.ok)throw new Error('O mapa de academias está temporariamente indisponível.');
-    const data=await response.json(),seen=new Set(),results=[];
+    const selectors=[
+      'nwr["leisure"="fitness_centre"]'+around,
+      'nwr["amenity"="gym"]'+around,
+      'nwr["leisure"="sports_centre"]["sport"~"fitness|bodybuilding|weightlifting|strength_training",i]'+around,
+      'nwr["sport"~"fitness|bodybuilding|weightlifting|strength_training",i]'+around
+    ];
+    const query='[out:json][timeout:25];('+selectors.join(';')+');out center tags;';
+    const endpoints=['https://overpass-api.de/api/interpreter','https://overpass.private.coffee/api/interpreter'];
+    let data=null;
+    for(let i=0;i<endpoints.length;i++){
+      try{
+        const response=await fetch(endpoints[i],{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:'data='+encodeURIComponent(query),signal:AbortSignal.timeout(30000)});
+        if(!response.ok)throw new Error('HTTP '+response.status);
+        data=await response.json();break;
+      }catch(error){
+        if(i<endpoints.length-1)status('A busca de academias está lenta; tentando outra fonte do OpenStreetMap…');
+      }
+    }
+    if(!data)throw new Error('O serviço de academias está temporariamente indisponível. Tente novamente em instantes.');
+    const seen=new Set(),results=[];
     for(const feature of data.elements||[]){
       const lat=feature.lat??feature.center?.lat,lon=feature.lon??feature.center?.lon;if(typeof lat!=='number'||typeof lon!=='number')continue;
       const key=Math.round(lat*10000)+':'+Math.round(lon*10000);if(seen.has(key))continue;seen.add(key);
@@ -28,6 +44,7 @@
     return results.filter(gym=>gym.distance_km<=meters/1000).sort((a,b)=>a.distance_km-b.distance_km).slice(0,50);
   };
   const osmMap=item=>'https://www.openstreetmap.org/?mlat='+item.lat+'&mlon='+item.lon+'#map=17/'+item.lat+'/'+item.lon;
+  const googleMapsSearch=position=>{const lat=(Math.round(position.lat*1000)/1000).toFixed(3),lon=(Math.round(position.lon*1000)/1000).toFixed(3);return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent('academias perto de '+lat+','+lon);};
   let leafletLoad=null;
   const loadMapLibrary=()=>{
     if(window.L)return Promise.resolve(window.L);
@@ -145,7 +162,9 @@
     const list=document.getElementById('hpeNearbyPeople'),gyms=document.getElementById('hpeNearbyGyms');
     renderMap();
     if(list)list.innerHTML=state.people.length?state.people.map((p,i)=>row(p,i,false)).join(''):'<li class="hpe-nearby-empty">Nenhum perfil próximo compartilhou a localização nas últimas 24 horas.</li>';
-    if(gyms)gyms.innerHTML=state.gyms.length?state.gyms.map((g,i)=>row(g,i,true)).join(''):'<li class="hpe-nearby-empty">Nenhuma academia foi encontrada nessa área.</li>';
+    const gymEmpty=state.gymSearchFailed?'Não foi possível consultar as academias agora.':'O OpenStreetMap não tem academias cadastradas nesta área.';
+    const googleLink=state.position?'<br><a class="hpe-nearby-route" href="'+googleMapsSearch(state.position)+'" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">Buscar academias no Google Maps</a>':'';
+    if(gyms)gyms.innerHTML=state.gyms.length?state.gyms.map((g,i)=>row(g,i,true)).join(''):'<li class="hpe-nearby-empty">'+gymEmpty+' '+googleLink+'</li>';
   };
   const renderCard=()=>{
     const role=typeof hpeProfile!=='undefined'?hpeProfile?.role:'';
@@ -159,7 +178,7 @@
       '<p class="hpe-nearby-status" id="hpeNearbyStatus" role="status">A busca só começa quando você tocar no botão. O GPS será solicitado pelo navegador.</p>'+
       '<div class="hpe-nearby-results"><div><div class="hpe-nearby-result-heading"><h3>Mapa da região</h3><div class="hpe-nearby-map-actions"><button type="button" class="hpe-nearby-compass-button" id="hpeNearbyCenterButton">Centralizar em mim</button><button type="button" class="hpe-nearby-compass-button" id="hpeCompassButton">Ativar bússola</button></div></div><div id="hpeNearbyMap" class="hpe-nearby-map"><div class="hpe-nearby-map-placeholder">Toque em “Buscar perto de mim” para carregar o mapa.</div></div><div class="hpe-nearby-map-legend"><span><i class="you"></i>Você</span><span><i class="profile"></i>'+(student?'Personal':'Aluno')+'</span><span><i class="gym"></i>Academia</span></div><small class="hpe-nearby-legend">Arraste e use o zoom para explorar. Os pontos dos perfis são aproximados.</small></div>'+
       '<div><h3>'+(student?'Personais cadastrados':'Alunos procurando personal')+'</h3><ol id="hpeNearbyPeople" class="hpe-nearby-list"><li class="hpe-nearby-empty">Toque em buscar para iniciar.</li></ol>'+
-      '<h3 class="hpe-nearby-subheading">Academias próximas</h3><ol id="hpeNearbyGyms" class="hpe-nearby-list"><li class="hpe-nearby-empty">As academias serão consultadas no mapa ao iniciar a busca.</li></ol><p class="hpe-nearby-attribution">Mapa e academias: © contribuidores do OpenStreetMap. A consulta de academias usa coordenadas arredondadas a cerca de 100 m; perfis aparecem em posição aproximada.</p></div></div>';
+      '<h3 class="hpe-nearby-subheading">Academias próximas</h3><ol id="hpeNearbyGyms" class="hpe-nearby-list"><li class="hpe-nearby-empty">As academias serão consultadas no mapa ao iniciar a busca.</li></ol><p class="hpe-nearby-attribution">Mapa e academias: © contribuidores do OpenStreetMap. Os cadastros podem estar incompletos. O Google Maps abre apenas quando você tocar no link, com localização arredondada a cerca de 100 m; perfis aparecem em posição aproximada.</p></div></div>';
     content.insertAdjacentElement('afterbegin',card);
     card.querySelector('#hpeNearbySearchButton').addEventListener('click',scan);
     card.querySelector('#hpeNearbyVisible').addEventListener('change',toggleVisibility);
@@ -180,13 +199,13 @@
   async function scan(){
     if(state.busy)return;state.busy=true;const button=document.getElementById('hpeNearbySearchButton');if(button)button.disabled=true;
     try{
-      status('Solicitando sua localização…');const p=await getPosition();state.position=p;state.people=[];state.gyms=[];
+      status('Solicitando sua localização…');const p=await getPosition();state.position=p;state.people=[];state.gyms=[];state.gymSearchFailed=false;
       if(state.visible)await call({action:'discovery_visibility',enabled:true,latitude:p.lat,longitude:p.lon});
       status('Buscando '+(hpeProfile.role==='aluno'?'academias e personais':'alunos e academias')+' em até '+state.radius+' km…');
       const jobs=[call({action:'discovery_nearby',latitude:p.lat,longitude:p.lon,radius_km:state.radius}),findGyms(p,state.radius),loadMapLibrary()];
       const done=await Promise.allSettled(jobs);
       state.people=done[0].status==='fulfilled'?(done[0].value?.results||[]):[];
-      state.gyms=done[1].status==='fulfilled'?done[1].value:[];
+      state.gyms=done[1].status==='fulfilled'?done[1].value:[];state.gymSearchFailed=done[1].status==='rejected';
       paint();
       const errors=done.slice(0,2).filter(x=>x.status==='rejected').map(x=>x.reason?.message||'Falha na busca.');
       if(done[2].status==='rejected')errors.push('O mapa interativo não carregou; as listas e a bússola continuam disponíveis.');
