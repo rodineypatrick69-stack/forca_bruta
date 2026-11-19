@@ -1,0 +1,17 @@
+.hpe-independent-home{display:flex;align-items:center;justify-content:space-between;gap:20px;margin:0 0 22px;border-color:#ff790055;background:linear-gradient(135deg,#211d18,#181817)}
+.hpe-independent-home h2{margin:6px 0}.hpe-independent-home p{max-width:620px;color:var(--muted)}
+.hpe-independent-mark{display:grid;place-items:center;flex:0 0 54px;width:54px;height:54px;border:1px solid #ff790077;border-radius:50%;color:#ff7900;font-size:32px}
+.hpe-independent-page{display:grid;gap:20px}.hpe-independent-heading h1{margin:6px 0}.hpe-independent-heading>p{max-width:760px;color:var(--muted);font-size:16px}
+.hpe-independent-form{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));align-items:end;gap:14px;margin-top:20px}
+.hpe-independent-form label{display:grid;gap:7px}.hpe-independent-form select{width:100%;min-height:44px;padding:9px 11px;border:1px solid #ffffff28;border-radius:9px;background:#222;color:inherit}
+.hpe-independent-status{min-height:22px;margin:14px 0 4px;color:#ffc17d;font-size:14px}
+.hpe-independent-plan-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px}.hpe-independent-plan-head h2{margin:5px 0}.hpe-independent-plan-head p{margin:0;color:var(--muted)}
+.hpe-independent-exercise-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.hpe-independent-exercise{position:relative;display:grid;grid-template-columns:74px 1fr;align-items:center;gap:12px;min-width:0;padding:12px;border:1px solid #ffffff18;border-radius:12px;background:#ffffff06}
+.hpe-independent-number{position:absolute;top:7px;left:8px;z-index:1;color:#ff9a3d;font-size:11px;font-weight:700}
+.hpe-independent-media{width:74px;height:74px;object-fit:cover;border-radius:9px;background:#111}.hpe-independent-media-empty{display:grid;place-items:center;width:74px;height:74px;border-radius:9px;background:#111;color:var(--muted);font-size:10px;text-align:center}
+.hpe-independent-exercise b{display:block;line-height:1.3}.hpe-independent-exercise p{margin:6px 0;font-size:13px;color:var(--muted)}.hpe-independent-exercise small{display:block;color:var(--muted);line-height:1.4}
+.hpe-independent-plan-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin-top:18px}
+.hpe-independent-plan-result{border-color:#ff790044}.hpe-independent-form button{min-height:44px}
+@media(max-width:760px){.hpe-independent-form{grid-template-columns:1fr 1fr}.hpe-independent-exercise-grid{grid-template-columns:1fr}}
+@media(max-width:520px){.hpe-independent-home{align-items:flex-start}.hpe-independent-mark{flex-basis:42px;width:42px;height:42px;font-size:26px}.hpe-independent-form{grid-template-columns:1fr}.hpe-independent-plan-head{display:block}.hpe-independent-plan-head .tag{display:inline-block;margin-top:10px}.hpe-independent-plan-actions>*{flex:1}}

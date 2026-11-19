@@ -1,0 +1,32 @@
+.hpe-nearby-card{margin:0 0 22px;padding:22px;border-color:#ffffff20;background:linear-gradient(135deg,#1c1d1b,#171817)}
+.hpe-nearby-heading,.hpe-nearby-controls,.hpe-nearby-result-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.hpe-nearby-heading h2{margin:5px 0}.hpe-nearby-heading p{margin:5px 0 0;color:var(--muted)}
+.hpe-nearby-compass-icon{display:grid;place-items:center;flex:0 0 52px;width:52px;height:52px;border:1px solid #ff790055;border-radius:50%;color:#ff7900;font-size:32px}
+.hpe-nearby-controls{justify-content:flex-start;flex-wrap:wrap;margin:18px 0}
+.hpe-nearby-controls label{display:flex;align-items:center;gap:8px;color:var(--muted)}
+.hpe-nearby-controls select{background:#222;color:inherit;border:1px solid #444;border-radius:10px;padding:8px}
+.hpe-nearby-controls button{min-height:44px}
+.hpe-nearby-consent{display:flex;align-items:flex-start;gap:10px;max-width:760px;padding:12px;border-radius:12px;background:#ffffff08}
+.hpe-nearby-consent input{accent-color:#ff7900;flex:0 0 auto;margin-top:3px;width:18px;height:18px}
+.hpe-nearby-consent b,.hpe-nearby-consent small{display:block}.hpe-nearby-consent small{margin-top:4px;color:var(--muted);line-height:1.5}
+.hpe-nearby-status{min-height:21px;color:#ffc17d;font-size:13px}
+.hpe-nearby-results{display:grid;grid-template-columns:minmax(220px,.85fr) minmax(280px,1.15fr);gap:22px;margin-top:16px}
+.hpe-nearby-results h3{margin:12px 0 9px}.hpe-nearby-result-heading h3{margin:0}
+.hpe-nearby-compass-button,.hpe-nearby-route{border:1px solid #ffffff2e;border-radius:9px;background:#ffffff08;color:inherit;padding:8px 11px;text-decoration:none;font-size:12px}
+.hpe-nearby-radar-wrap{display:grid;place-items:center;min-height:290px;margin:12px auto 5px}
+.hpe-nearby-radar{position:relative;width:min(100%,280px);aspect-ratio:1;border:1px solid #8b95884a;border-radius:50%;background:radial-gradient(circle,#252824 0 26%,transparent 26.4%),radial-gradient(circle,#ffffff06,#ffffff03);overflow:hidden;transition:transform .2s ease}
+.hpe-nearby-ring{position:absolute;border:1px solid #a3aa9e24;border-radius:50%;left:50%;top:50%;transform:translate(-50%,-50%)}
+.hpe-nearby-ring.ring-one{width:66%;height:66%}.hpe-nearby-ring.ring-two{width:34%;height:34%}
+.hpe-nearby-north,.hpe-nearby-east,.hpe-nearby-south,.hpe-nearby-west{position:absolute;color:#aeb4a9;font-size:10px;font-weight:700;z-index:1}
+.hpe-nearby-north{top:5px;left:50%;transform:translateX(-50%);color:#ff7900}.hpe-nearby-east{right:7px;top:50%;transform:translateY(-50%)}.hpe-nearby-south{bottom:5px;left:50%;transform:translateX(-50%)}.hpe-nearby-west{left:7px;top:50%;transform:translateY(-50%)}
+.hpe-nearby-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2;display:grid;place-items:center;width:44px;height:44px;border-radius:50%;background:#ff7900;color:#111;font-size:10px;font-weight:800}
+.hpe-nearby-dot{position:absolute;z-index:3;transform:translate(-50%,-50%);display:grid;place-items:center;min-width:22px;height:22px;border:1px solid #111;border-radius:50%;background:#efece5;color:#111;font-size:10px;font-weight:800}
+.hpe-nearby-dot.coach{background:#ff7900}.hpe-nearby-dot.student{background:#81bd8e}
+.hpe-nearby-legend,.hpe-nearby-attribution{color:var(--muted);font-size:12px;line-height:1.5}.hpe-nearby-legend{display:block;text-align:center}
+.hpe-nearby-list{display:grid;gap:7px;list-style:none;margin:0;padding:0;max-height:325px;overflow:auto}
+.hpe-nearby-row{display:flex;align-items:center;gap:9px;padding:9px;border:1px solid #ffffff12;border-radius:10px;background:#ffffff05}
+.hpe-nearby-number{display:grid;place-items:center;flex:0 0 25px;width:25px;height:25px;border-radius:50%;background:#ffffff12;font-size:11px}
+.hpe-nearby-item{display:grid;gap:3px;flex:1;min-width:0}.hpe-nearby-item b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.hpe-nearby-item small{color:var(--muted);font-size:11px}
+.hpe-nearby-route{white-space:nowrap}.hpe-nearby-empty{padding:13px;color:var(--muted);font-size:13px;line-height:1.5}
+.hpe-nearby-attribution{margin:12px 0 0}
+@media(max-width:700px){.hpe-nearby-card{padding:16px}.hpe-nearby-results{grid-template-columns:1fr;gap:12px}.hpe-nearby-radar-wrap{min-height:250px}.hpe-nearby-heading{align-items:flex-start}.hpe-nearby-controls{align-items:stretch}.hpe-nearby-controls button{flex:1}}
