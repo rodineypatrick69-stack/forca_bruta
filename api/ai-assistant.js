@@ -285,8 +285,8 @@ module.exports = async function aiAssistant(req, res) {
   if (!profile) return send(res, 403, { error: "PROFILE_NOT_ALLOWED", message: "Sua conta não pode usar este serviço." });
 
   if (body.action === "generate_plan") {
-    if (profile.role !== "aluno" || profile.personal_id !== null || profile.consultation_only === true) {
-      return send(res, 403, { error: "INDEPENDENT_STUDENT_ONLY", message: "A criação de treino com IA está disponível para alunos independentes." });
+    if (profile.role !== "aluno" || profile.consultation_only === true) {
+      return send(res, 403, { error: "INDEPENDENT_STUDENT_ONLY", message: "A criação de sugestão de treino com IA está disponível para alunos com acesso completo." });
     }
     return generateIndependentPlan(res, profile, body);
   }
