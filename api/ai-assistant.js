@@ -19,6 +19,16 @@ const SYSTEM_PROMPT = [
   "Não recomende medicamentos, hormônios, anabolizantes ou protocolos de suplementação.",
   "Peça ao usuário para não inserir nomes completos, contatos, fotos, exames ou informações de saúde identificáveis."
 ].join(" ");
+const STUDENT_SYSTEM_PROMPT = [
+  "Você é o Assistente HPE Força Bruta, um apoio educativo para alunos.",
+  "Responda sempre em português do Brasil, com linguagem clara, prática e respeitosa.",
+  "Ajude a compreender exercícios, séries, repetições, descanso e conceitos gerais de treino.",
+  "Você não acessa fichas, cadastros, fotos, questionários ou histórico do HPE. Não afirme que consultou esses dados.",
+  "Não salve, altere ou substitua o treino definido pelo personal. Oriente o aluno a conversar com o personal antes de mudar exercícios, cargas ou frequência.",
+  "Não diagnostique, trate ou prescreva para lesões, doenças, gravidez ou sintomas; encaminhe a decisão ao profissional de saúde e ao personal responsável.",
+  "Não recomende medicamentos, hormônios, anabolizantes ou protocolos de suplementação.",
+  "Peça ao usuário para não inserir nomes completos, contatos, fotos, exames ou informações de saúde identificáveis."
+].join(" ");
 
 function send(res, status, body) {
   res.status(status).json(body);
@@ -275,8 +285,8 @@ module.exports = async function aiAssistant(req, res) {
   if (!profile) return send(res, 403, { error: "PROFILE_NOT_ALLOWED", message: "Sua conta não pode usar este serviço." });
 
   if (body.action === "generate_plan") {
-    if (profile.role !== "aluno" || profile.personal_id !== null || profile.consultation_only === true) {
-      return send(res, 403, { error: "INDEPENDENT_STUDENT_ONLY", message: "A criação de treino com IA está disponível para alunos independentes." });
+    if (profile.role !== "aluno" || profile.consultation_only === true) {
+      return send(res, 403, { error: "INDEPENDENT_STUDENT_ONLY", message: "A criação de sugestão de treino com IA está disponível para alunos com acesso completo." });
     }
     return generateIndependentPlan(res, profile, body);
   }
@@ -284,8 +294,11 @@ module.exports = async function aiAssistant(req, res) {
   if (body.action && body.action !== "chat") {
     return send(res, 400, { error: "UNKNOWN_ACTION", message: "Ação não reconhecida." });
   }
-  if (profile.role !== "personal") {
-    return send(res, 403, { error: "PERSONAL_ONLY", message: "O assistente de conversa está disponível apenas para personais cadastrados." });
+  if (!["personal", "aluno"].includes(profile.role)) {
+    return send(res, 403, { error: "ROLE_NOT_ALLOWED", message: "O assistente está disponível para personais e alunos." });
+  }
+  if (profile.role === "aluno" && profile.consultation_only === true) {
+    return send(res, 403, { error: "CONSULTATION_ONLY", message: "Esta conta tem acesso somente à consulta." });
   }
   if (!consumeRateLimit(profile.id)) return send(res, 429, { error: "RATE_LIMITED", message: "Aguarde um minuto antes de enviar novas perguntas." });
   if (!isModelEnabled()) {
@@ -324,7 +337,7 @@ module.exports = async function aiAssistant(req, res) {
       },
       body: JSON.stringify({
         model: MODEL,
-        messages: [{ role: "system", content: SYSTEM_PROMPT }, ...messages],
+        messages: [{ role: "system", content: profile.role === "aluno" ? STUDENT_SYSTEM_PROMPT : SYSTEM_PROMPT }, ...messages],
         temperature: 0.35,
         top_p: 0.9,
         max_tokens: 1000,

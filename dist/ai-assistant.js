@@ -24,6 +24,16 @@
     }
   }
 
+  function assistantRoleAllowed() {
+    if (role === 'personal') return true;
+    if (role !== 'aluno') return false;
+    try {
+      return typeof hpeProfile !== 'undefined' && hpeProfile?.consultation_only !== true;
+    } catch {
+      return false;
+    }
+  }
+
   function syncIdentity() {
     const profileId = currentProfileId();
     if (profileId !== previousProfileId) {
@@ -33,7 +43,7 @@
   }
 
   async function checkAvailability() {
-    if (role !== 'personal' || assistantAvailable || availabilityRequest || Date.now() < availabilityRetryAt) return;
+    if (!assistantRoleAllowed() || assistantAvailable || availabilityRequest || Date.now() < availabilityRetryAt) return;
     availabilityRequest = (async () => {
       try {
         const response = await fetch(API_URL, { headers: { Accept: 'application/json' } });
@@ -45,7 +55,7 @@
         availabilityRetryAt = Date.now() + 30_000;
       } finally {
         availabilityRequest = null;
-        if (assistantAvailable && role === 'personal') render();
+        if (assistantAvailable && assistantRoleAllowed()) render();
       }
     })();
     await availabilityRequest;
@@ -55,7 +65,7 @@
     const nav = query('#nav');
     if (!nav) return;
     let button = query('#hpeAiNav', nav);
-    if (role !== 'personal' || !assistantAvailable) {
+    if (!assistantRoleAllowed() || !assistantAvailable) {
       button?.remove();
       return;
     }
@@ -82,23 +92,38 @@
         ).join('')
       : '<article class="hpe-ai-message assistant"><span class="hpe-ai-speaker">Assistente HPE</span><p>Olá! Posso ajudar com ideias gerais para organizar treinos e explicar exercícios. Revise as sugestões antes de usá-las.</p></article>';
 
+    const isStudent = role === 'aluno';
+    const eyebrow = isStudent ? 'APOIO AO ALUNO' : 'APOIO AO PERSONAL';
+    const description = isStudent
+      ? 'Tire dúvidas gerais sobre exercícios, séries, repetições e descanso.'
+      : 'Converse sobre organização de treinos, exercícios e comunicação com alunos.';
+    const privacyNotice = isStudent
+      ? 'A IA não acessa seu treino nem substitui seu personal. Converse com ele antes de mudar exercícios, cargas ou frequência. Não informe dados pessoais ou de saúde.'
+      : 'O assistente não acessa as fichas do HPE. Não informe nomes, contatos, fotos, exames, lesões ou dados de saúde. Use as respostas como rascunho e revise antes de orientar o aluno.';
+    const placeholder = isStudent
+      ? 'Ex.: Para que serve o intervalo entre as séries?'
+      : 'Ex.: Sugira uma estrutura de treino de força para nível intermediário.';
+    const disclaimer = isStudent
+      ? 'A IA pode errar. Siga o plano do seu personal e procure profissionais de saúde para dúvidas clínicas.'
+      : 'A IA pode errar. Não substitui a avaliação do personal nem a orientação de profissionais de saúde.';
+
     root.innerHTML =
       '<section class="hpe-ai-page">' +
         '<div class="hpe-ai-heading card">' +
-          '<span class="eyebrow">APOIO AO PERSONAL</span>' +
+          '<span class="eyebrow">' + eyebrow + '</span>' +
           '<h1>Assistente IA</h1>' +
-          '<p>Converse sobre organização de treinos, exercícios e comunicação com alunos.</p>' +
-          '<div class="hpe-ai-notice"><b>Privacidade e revisão:</b> o assistente não acessa as fichas do HPE. Não informe nomes, contatos, fotos, exames, lesões ou dados de saúde. Use as respostas como rascunho e revise antes de orientar o aluno.</div>' +
+          '<p>' + description + '</p>' +
+          '<div class="hpe-ai-notice"><b>Privacidade e revisão:</b> ' + privacyNotice + '</div>' +
         '</div>' +
         '<div class="hpe-ai-chat card">' +
-          '<div class="hpe-ai-toolbar"><span class="tag">NVIDIA NEMOTRON</span><button type="button" id="hpeAiClear">Limpar conversa</button></div>' +
+          '<div class="hpe-ai-toolbar"><span class="tag">NVIDIA GPT OSS 20B</span><button type="button" id="hpeAiClear">Limpar conversa</button></div>' +
           '<div class="hpe-ai-transcript" id="hpeAiTranscript" role="log" aria-live="polite" aria-label="Conversa com o assistente">' + transcript + '</div>' +
           '<form id="hpeAiForm" class="hpe-ai-form">' +
             '<label class="sr-only" for="hpeAiInput">Sua pergunta</label>' +
-            '<textarea id="hpeAiInput" maxlength="2400" rows="3" placeholder="Ex.: Sugira uma estrutura de treino de força para nível intermediário." required ' + (sending ? 'disabled' : '') + '></textarea>' +
+            '<textarea id="hpeAiInput" maxlength="2400" rows="3" placeholder="' + placeholder + '" required ' + (sending ? 'disabled' : '') + '></textarea>' +
             '<div class="hpe-ai-form-footer"><small>Até 2.400 caracteres. Não inclua dados pessoais ou clínicos.</small><button class="primary" type="submit" ' + (sending ? 'disabled' : '') + '>' + (sending ? 'Aguarde…' : 'Enviar pergunta ↗') + '</button></div>' +
           '</form>' +
-          '<p class="hpe-ai-disclaimer">A IA pode errar. Não substitui a avaliação do personal nem a orientação de profissionais de saúde.</p>' +
+          '<p class="hpe-ai-disclaimer">' + disclaimer + '</p>' +
         '</div>' +
       '</section>';
 
@@ -171,17 +196,17 @@
   const originalRender = render;
   render = function hpeRenderWithAssistant() {
     syncIdentity();
-    if (role === 'personal' && !assistantAvailable) void checkAvailability();
-    if (page === 'hpe-ai' && (role !== 'personal' || !assistantAvailable)) page = 'inicio';
+    if (assistantRoleAllowed() && !assistantAvailable) void checkAvailability();
+    if (page === 'hpe-ai' && (!assistantRoleAllowed() || !assistantAvailable)) page = 'inicio';
     originalRender();
     renderNavButton();
-    if (page === 'hpe-ai' && role === 'personal') drawAssistant();
+    if (page === 'hpe-ai' && assistantRoleAllowed()) drawAssistant();
   };
 
   const originalGo = go;
   go = function hpeGoWithAssistant(nextPage) {
     if (nextPage === 'hpe-ai') {
-      if (role !== 'personal' || !assistantAvailable) return originalGo('inicio');
+      if (!assistantRoleAllowed() || !assistantAvailable) return originalGo('inicio');
       page = 'hpe-ai';
       render();
       return;
