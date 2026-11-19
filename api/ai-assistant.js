@@ -1,4 +1,4 @@
-const MODEL = "nvidia/nemotron-3.5-lightning-30b-a3b";
+const MODEL = "openai/gpt-oss-20b";
 const NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "";
@@ -51,7 +51,7 @@ function parseBody(body) {
 
 function modelKey() {
   const isPreview = process.env.VERCEL_ENV === "preview";
-  const key = (process.env.NVIDIA_API_KEY || (isPreview ? process.env.NVIDIA_API_Keys : "") || "").trim();
+  const key = (process.env.NVIDIA_API_KEY || "").trim();
   return isPreview && !key.startsWith("nvapi-") ? "" : key;
 }
 
