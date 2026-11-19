@@ -56,7 +56,7 @@
     const form=document.getElementById('hpeIndependentPlanForm');form.onsubmit=generatePlan;
     if(availability===null)void checkAvailability();
   }
-  async function generatePlan(event){
+  async async function generatePlan(event){
     event.preventDefault();if(!canUseStudentAI()||busy)return;
     const form=event.currentTarget,fields=new FormData(form),status=document.getElementById('hpeIndependentPlanStatus'),button=form.querySelector('button');
     const catalog=mediaCatalog();if(catalog.length<12){status.textContent='A biblioteca de demonstrações não está pronta. Atualize o app e tente novamente.';return}
